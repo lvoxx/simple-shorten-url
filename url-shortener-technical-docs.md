@@ -252,7 +252,9 @@ CREATE TABLE urls (
   click_count   BIGINT NOT NULL DEFAULT 0,
   expire_at     TIMESTAMP,
   created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at    TIMESTAMP NOT NULL DEFAULT NOW()
+  updated_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+  created_by     VARCHAR(255)  -- optional, for tracking who created the short URL
+  updated_by     VARCHAR(255)  -- optional, for tracking who last updated the short URL
 );
 
 CREATE UNIQUE INDEX idx_urls_short_code ON urls(short_code);
