@@ -52,7 +52,7 @@ public class AnalyticsEventListener {
         a.setUserAgent(event.getUserAgent() != null ? event.getUserAgent().toString() : null);
         a.setReferer(event.getReferer() != null ? event.getReferer().toString() : null);
         a.setCreatedAt(
-                Instant.ofEpochMilli(event.getCreatedAt())
+                event.getCreatedAt()
                         .atZone(ZoneId.systemDefault())
                         .toLocalDateTime()
         );

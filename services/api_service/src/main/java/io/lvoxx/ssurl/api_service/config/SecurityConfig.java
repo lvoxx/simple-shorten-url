@@ -35,6 +35,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/webjars/**"
                         ).permitAll()
+                        .pathMatchers(HttpMethod.POST, "/api/v1/urls").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/urls/public/**").permitAll()
                         .anyExchange().authenticated()
                 )

@@ -2,8 +2,8 @@ package io.lvoxx.ssurl.api_service.service;
 
 import io.lvoxx.ssurl.common.dto.request.CreateUrlRequest;
 import io.lvoxx.ssurl.common.dto.request.UpdateUrlRequest;
+import io.lvoxx.ssurl.common.dto.response.CursorPage;
 import io.lvoxx.ssurl.common.dto.response.UrlResponse;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public interface UrlService {
@@ -12,7 +12,7 @@ public interface UrlService {
 
     Mono<UrlResponse> getByShortCode(String shortCode);
 
-    Flux<UrlResponse> listByUser(Long userId);
+    Mono<CursorPage<UrlResponse>> listByUser(Long userId, Long cursor, int size);
 
     Mono<UrlResponse> update(Long id, UpdateUrlRequest request, Long userId);
 

@@ -13,7 +13,11 @@ public interface UrlRepository extends ReactiveCrudRepository<Url, Long> {
 
     Mono<Url> findByShortCodeAndIsActive(String shortCode, boolean isActive);
 
-    Flux<Url> findAllByUserId(Long userId);
+    @Query("SELECT * FROM urls WHERE user_id = :userId ORDER BY id DESC LIMIT :size")
+    Flux<Url> findTopByUserIdOrderByIdDesc(Long userId, int size);
+
+    @Query("SELECT * FROM urls WHERE user_id = :userId AND id < :cursor ORDER BY id DESC LIMIT :size")
+    Flux<Url> findByUserIdAndIdLessThanOrderByIdDesc(Long userId, Long cursor, int size);
 
     Mono<Long> countByUserId(Long userId);
 
