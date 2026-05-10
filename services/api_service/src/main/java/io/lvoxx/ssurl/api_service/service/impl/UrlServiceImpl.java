@@ -35,18 +35,21 @@ public class UrlServiceImpl implements UrlService {
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final UrlMapper urlMapper;
     private final AppProperties appProperties;
+    private final Base62 base62;
 
     public UrlServiceImpl(
             UrlRepository urlRepository,
             DomainBlacklistRepository domainBlacklistRepository,
             ReactiveRedisTemplate<String, String> redisTemplate,
             UrlMapper urlMapper,
-            AppProperties appProperties) {
+            AppProperties appProperties,
+            Base62 base62) {
         this.urlRepository = urlRepository;
         this.domainBlacklistRepository = domainBlacklistRepository;
         this.redisTemplate = redisTemplate;
         this.urlMapper = urlMapper;
         this.appProperties = appProperties;
+        this.base62 = base62;
     }
 
     @Override
@@ -64,7 +67,7 @@ public class UrlServiceImpl implements UrlService {
                     return urlRepository.save(url);
                 })
                 .flatMap(saved -> {
-                    String shortCode = Base62.encode(saved.getId());
+                    String shortCode = base62.encode(saved.getId().getBytes());
                     saved.setShortCode(shortCode);
                     return urlRepository.save(saved);
                 })
