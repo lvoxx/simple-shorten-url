@@ -12,14 +12,15 @@
     </parent>
 
     <groupId>io.lvoxx.ssurl</groupId>
-    <artifactId>kafka_starter</artifactId>
+    <artifactId>swagger_starter</artifactId>
     <version>1.0.0</version>
-    <name>kafka_starter</name>
+    <name>swagger_starter</name>
 
     <dependencies>
         <dependency>
-            <groupId>org.springframework.kafka</groupId>
-            <artifactId>spring-kafka</artifactId>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+            <version>${springdoc-openapi.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

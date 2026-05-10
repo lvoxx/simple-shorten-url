@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.github.lvoxx</groupId>
-    <artifactId>starter</artifactId>
+    <parent>
+        <groupId>io.lvoxx.ssurl</groupId>
+        <artifactId>root</artifactId>
+        <version>1.0.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>io.lvoxx.ssurl</groupId>
+    <artifactId>starters</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
     <name>SSURL — Starters Parent</name>
@@ -14,13 +21,8 @@
         <module>kafka_starter</module>
         <module>postgres_starter</module>
         <module>redis_starter</module>
+        <module>swagger_starter</module>
+        <module>message_starter</module>
     </modules>
-
-    <parent>
-        <groupId>io.github.lvoxx</groupId>
-        <artifactId>root</artifactId>
-        <version>1.0.0</version>
-        <relativePath>../pom.xml</relativePath>
-    </parent>
 
 </project>
