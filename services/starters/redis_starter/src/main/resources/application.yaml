@@ -1,0 +1,27 @@
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:"localhost"}
+      port: 6379
+      database: 0
+
+      # --- Authentication ---
+      password: ${REDIS_PASSWORD:"redis_password"}
+
+      # --- Timeout ---
+      timeout: 3s
+
+      # --- Lettuce (default reactive driver) ---
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 200
+          max-idle: 50
+          min-idle: 10
+          max-wait: 3s
+
+        shutdown-timeout: 100ms
+
+      # --- SSL (nếu dùng cloud redis) ---
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}

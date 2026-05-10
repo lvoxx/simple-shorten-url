@@ -1,0 +1,23 @@
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+    # --- UI behavior ---
+    operationsSorter: method
+    tagsSorter: alpha
+    docExpansion: none
+
+    # --- UX ---
+    display-request-duration: true
+    tryItOutEnabled: true
+
+  packages-to-scan: io.lvoxx.ssurl
+  paths-to-match: /api/**
+
+  cache:
+    disabled: false

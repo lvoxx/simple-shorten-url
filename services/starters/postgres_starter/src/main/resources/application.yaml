@@ -1,0 +1,41 @@
+spring:
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/your_db
+    username: your_user
+    password: your_password
+
+    pool:
+      enabled: true
+
+      # --- Pool sizing ---
+      initial-size: 10
+      max-size: 100
+
+      # --- Lifecycle ---
+      max-idle-time: 30m
+      max-life-time: 60m
+
+      # --- Timeouts ---
+      max-create-connection-time: 5s
+      max-acquire-time: 5s
+      max-validation-time: 3s
+
+      # --- Health check ---
+      validation-query: SELECT 1
+
+      # --- Idle cleanup ---
+      background-eviction-interval: 5m
+
+  data:
+    r2dbc:
+      repositories:
+        enabled: true
+
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    org.springframework.r2dbc: WARN
+    io.r2dbc.postgresql: WARN
