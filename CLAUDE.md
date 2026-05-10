@@ -365,12 +365,61 @@ All runtime config is injected via env vars (no hardcoded values in `application
 
 JWT refresh tokens are stored in HTTP-only cookies (XSS protection); access tokens in-memory only.
 
+## Caching
+
+Spring Cache (`@EnableCaching`, `RedisCacheManager`) is configured in `redis_starter`. Cache name: **`short-urls`**, Redis key prefix: `short:` (e.g. `short:abc123`), TTL: 24h.
+
+- `redirect_service`: `UrlCacheService.resolveOriginalUrl()` is annotated `@Cacheable("short-urls")` — Spring handles read-through automatically.
+- `api_service`: `UrlCacheOperations` provides `@CachePut` (on create) and `@CacheEvict` (on delete/deactivation). Injected into `UrlServiceImpl`.
+- Never call `@CachePut`/`@CacheEvict` methods from within the same class — Spring AOP won't intercept self-invocations.
+
+## URL Expiry Policy
+
+- **Anonymous users**: always expire after 7 days (set in `UrlServiceImpl.createUrl` when `userId == null`).
+- **Authenticated users**: no default expiry; client may optionally supply `expireAt` in the request.
+- `POST /api/v1/urls` is public (no auth required). Anonymous requests receive 7-day TTL.
+
+## Cursor-Based Pagination
+
+`GET /api/v1/urls/my` supports cursor-based pagination (requires authentication):
+
+| Query param | Default | Description |
+|---|---|---|
+| `cursor` | _(none)_ | Last `id` from previous page (exclusive). Omit for first page. |
+| `size` | 20 | Items per page (max 100). |
+
+Response is `CursorPage<UrlResponse>` with `content`, `nextCursor` (null on last page), and `hasNext`.
+
+## Exception Messages
+
+All domain exceptions extend `AppException` (in `common`) which carries `Object[] args` for `MessageSource` interpolation. `GlobalExceptionHandler` in each service calls `messageSource.getMessage(code, ex.getArgs(), locale)`. Message keys live in `message_starter/src/main/resources/messages/errors.properties`.
+
+## Starters
+
+| Starter | Value | Beans defined |
+|---|---|---|
+| `postgres_starter` | default R2DBC pool config via `application.yaml` | none (Spring Boot R2DBC auto-config provides all beans) |
+| `redis_starter` | default Redis config + `@EnableCaching` + `RedisCacheManager` | `RBloomFilter`, `RedisCacheManager` |
+| `kafka_starter` | default Kafka consumer config via `application.yaml` | `NewTopic` |
+| `swagger_starter` | Swagger UI config | `OpenAPI` |
+| `message_starter` | i18n message files | `MessageSource` |
+
+## Dockerfiles
+
+Each service has a `Dockerfile` at its directory root. **Build context must be `services/`** (the root containing `pom.xml`) because services depend on shared `common` and starter modules.
+
+```bash
+# From services/ directory
+docker build -f api_service/Dockerfile -t ssurl-api .
+docker build -f redirect_service/Dockerfile -t ssurl-redirect .
+docker build -f analytics_worker/Dockerfile -t ssurl-analytics .
+```
+
 ## Known Issues
 
-1. **Invalid test dependency IDs** in `services/api_service/pom.xml` — `spring-boot-starter-data-redis-reactive-test`, `-validation-test`, `-webflux-test` don't exist. Replace with `spring-boot-starter-test`.
-2. **Starters need restructuring** — remove `spring-boot-maven-plugin` executable JAR packaging; restructure as library JARs and add as `<dependency>` entries in consuming services.
-3. **SQL syntax error** in `database/urls.sql` — missing commas before `created_by`/`updated_by`.
-4. **No root POM** — each service is built independently. A root aggregator POM would allow `./mvnw test` across all modules at once.
+1. **SQL syntax error** in `database/urls.sql` — missing commas before `created_by`/`updated_by`.
+2. **Cache TTL vs expireAt mismatch** — URLs cached with 24h Redis TTL even if `expireAt` is sooner. Expired URLs may be served from cache until the 24h TTL expires. Fix: compute TTL as `min(24h, expireAt - now)` in `UrlCacheService`.
+3. **`@WebFluxTest` unavailable in Spring Boot 4.0.6** — use plain Mockito unit tests for controllers instead of `@WebFluxTest` slices.
 
 ## Reference
 
