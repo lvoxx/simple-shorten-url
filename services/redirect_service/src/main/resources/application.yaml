@@ -1,0 +1,10 @@
+spring:
+    application:
+        name: redirect-service
+
+server:
+    port: 8081
+
+logging:
+    level:
+        io.lvoxx.ssurl: DEBUG

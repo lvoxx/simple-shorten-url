@@ -1,0 +1,48 @@
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    consumer:
+      group-id: your-consumer-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+      # --- Deserializer ---
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+
+      properties:
+        # --- Schema Registry ---
+        schema.registry.url: http://localhost:8081
+
+        # --- Avro config ---
+        specific.avro.reader: true
+
+        # --- Performance tuning ---
+        fetch.min.bytes: 50000
+        fetch.max.wait.ms: 500
+
+        max.partition.fetch.bytes: 1048576  # 1MB
+        max.poll.records: 500
+
+        # --- Stability ---
+        session.timeout.ms: 10000
+        heartbeat.interval.ms: 3000
+
+        # --- Security (optional) ---
+        # security.protocol: SASL_SSL
+        # sasl.mechanism: PLAIN
+
+    listener:
+      type: batch
+      ack-mode: manual
+      concurrency: 4
+
+      # --- Retry / backoff ---
+      missing-topics-fatal: false
+      idle-between-polls: 0
+
+logging:
+  level:
+    org.apache.kafka: WARN
+    org.springframework.kafka: WARN
