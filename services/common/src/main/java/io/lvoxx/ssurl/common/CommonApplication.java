@@ -1,13 +1,3 @@
 package io.lvoxx.ssurl.common;
-
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-
-@SpringBootApplication
-public class CommonApplication {
-
-	public static void main(String[] args) {
-		SpringApplication.run(CommonApplication.class, args);
-	}
-
-}
+// Shared library — not a runnable application.
+// Domain models, DTOs, exceptions, mappers, and utilities live here.

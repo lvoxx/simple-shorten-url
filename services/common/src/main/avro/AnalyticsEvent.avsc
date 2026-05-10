@@ -1,0 +1,39 @@
+{
+  "type": "record",
+  "name": "AnalyticsEvent",
+  "namespace": "io.lvoxx.ssurl.avro",
+  "doc": "Represents a single URL click event emitted by api_service and redirect_service.",
+  "fields": [
+    {
+      "name": "shortCode",
+      "type": "string",
+      "doc": "The short code that was resolved."
+    },
+    {
+      "name": "ip",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Client IP address (may be from X-Forwarded-For)."
+    },
+    {
+      "name": "userAgent",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "HTTP User-Agent header value."
+    },
+    {
+      "name": "referer",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "HTTP Referer header value."
+    },
+    {
+      "name": "createdAt",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event creation time in epoch milliseconds."
+    }
+  ]
+}
