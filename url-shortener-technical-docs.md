@@ -208,7 +208,6 @@ shared/
 │   ├── UrlCreateRequest.java
 │   └── UrlResponse.java
 ├── util/
-│   ├── Base62Encoder.java
 │   └── ShortCodeGenerator.java
 └── exception/
     ├── ShortCodeNotFoundException.java
@@ -340,22 +339,14 @@ Example:
 0-9 a-z A-Z
 ```
 
-**Implementation:**
-```java
-public class Base62Encoder {
-    private static final String ALPHABET =
-        "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+**Use lib:**
+```xml
+<dependency>
+    <groupId>io.seruco.encoding</groupId>
+    <artifactId>base62</artifactId>
+    <version>0.1.3</version>
+</dependency>
 
-    public static String encode(long id) {
-        if (id == 0) return String.valueOf(ALPHABET.charAt(0));
-        StringBuilder sb = new StringBuilder();
-        while (id > 0) {
-            sb.append(ALPHABET.charAt((int)(id % 62)));
-            id /= 62;
-        }
-        return sb.reverse().toString();
-    }
-}
 ```
 
 > **Why not UUID?** UUIDs are 36 chars and not human-friendly. Base62 from auto-increment gives short (4-7 char), unique, URL-safe codes with predictable length growth.
@@ -1579,7 +1570,7 @@ The majority of tests are fast, isolated unit tests. Integration tests cover cri
 
 | Class Under Test | Test Scenario |
 |---|---|
-| `Base62Encoder` | `encode(0) = "0"`, `encode(1_000_000) = "4c92"`, round-trip decode |
+| `Base62` | `encode(0) = "0"`, `encode(1_000_000) = "4c92"`, round-trip decode |
 | `ShortCodeGenerator` | Generated code is 4–7 chars, Base62 alphabet only |
 | `UrlService` | Rejects malformed URLs, private IPs, disallowed schemes |
 | `SpamDetectionService` | Flag IP exceeding creation threshold; block known patterns |
@@ -1587,7 +1578,7 @@ The majority of tests are fast, isolated unit tests. Integration tests cover cri
 | `JwtService` | Token generation, expiry validation, tampered token rejection |
 
 ```java
-// Example: Base62Encoder unit test
+// Example: Base62 unit test
 @ParameterizedTest
 @CsvSource({
     "0,           0",
@@ -1595,7 +1586,7 @@ The majority of tests are fast, isolated unit tests. Integration tests cover cri
     "3521614606208, zzzzzz"
 })
 void encode_shouldProduceExpectedCode(long id, String expected) {
-    assertThat(Base62Encoder.encode(id)).isEqualTo(expected);
+    assertThat(Base62.encode(id.getBytes())).isEqualTo(expected);
 }
 ```
 

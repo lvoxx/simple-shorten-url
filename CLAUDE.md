@@ -69,7 +69,7 @@ Client → Cloudflare CDN → NGINX
 - `bloom:urls` — Redisson `RBloomFilter` (10M capacity, 1% false positive)
 - `blacklist:domain:{domain}` — 10m TTL
 
-**Short code generation:** BIGSERIAL → Base62 encode (0-9a-zA-Z). Implement `Base62Encoder` in `common` first — both `api_service` and `redirect_service` need it.
+**Short code generation:** BIGSERIAL → Base62 encode (0-9a-zA-Z). Use base62 from io.seruco.encoding — both `api_service` and `redirect_service` need it.
 
 **Redirect strategy:** Always 302 (browser must recheck, enabling analytics). 301 only at Cloudflare edge.
 
@@ -82,11 +82,11 @@ services/
 ├── api_service/          # Write path — auth, URL CRUD, user mgmt
 ├── redirect_service/     # Read path — high-throughput redirect
 ├── analytics_worker/     # Async Kafka consumer
-├── common/               # Shared: domain models, DTOs, exceptions, Base62Encoder,
+├── common/               # Shared: domain models, DTOs, exceptions
 │                         #   MapStruct mappers, Avro schema definitions
 └── starters/
     ├── kafka_starter/    # Kafka producer/consumer auto-config + Avro serializer setup
-    ├── postgres_starter/ # R2DBC auto-config + TransactionalOperator bean
+    ├── postgres_starter/ # R2DBC auto-config + TransactionalOperaBase62tor bean
     ├── redis_starter/    # Redis Reactive auto-config
     ├── swagger_starter/  # Springdoc OpenAPI bean + global OpenAPI config
     └── message_starter/  # MessageSource auto-config, shared i18n YAML files
