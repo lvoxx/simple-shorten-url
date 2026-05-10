@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A URL shortener built as a modular monolith — three independently deployable Spring Boot services sharing a common Maven module. The system uses a **write/read/async** service split:
+A URL shortener built as a modular monolith — three independently deployable Spring Boot services sharing common and starter modules. The system uses a **write/read/async** service split:
 
 - `api_service` (port 8080) — URL creation, auth, user management
 - `redirect_service` (port 8081) — short-code resolution and 302 redirect (hot path)
@@ -40,21 +40,25 @@ Ports: Postgres `5432`, pgAdmin `5050`, Redis `6379`, Kafka `9092`, Confluent Co
 
 Redis password (dev only): `12345678` (set in `docker/redis.conf`).
 
+**Database schema is initialized by Docker Compose only** — never via Spring (`spring.sql.init`, `Flyway`, `Liquibase`, or `ApplicationRunner`). Run `database/*.sql` manually or mount them as Docker init scripts.
+
 ## Tech Stack
 
 - **Java 25**, **Spring Boot 4.0.6**
 - **Spring WebFlux** (reactive) — all services use `Mono`/`Flux` throughout
 - **R2DBC + r2dbc-postgresql** — reactive DB access (no JPA/Hibernate)
 - **Spring Data Redis Reactive** — caching and rate limiting
-- **Apache Kafka** — async analytics event pipeline
-- **Testcontainers** — Postgres + Redis spun up per test run
+- **Apache Kafka + Avro** — async analytics pipeline; schemas managed via Confluent Schema Registry
+- **MapStruct** — compile-time DTO ↔ model mapping (no manual mapping)
+- **Springdoc OpenAPI** — Swagger UI; centralized in `swagger_starter`
+- **Testcontainers** — Postgres + Redis spun up per integration test run
 
 ## Architecture & Data Flow
 
 ```
 Client → Cloudflare CDN → NGINX
   → redirect_service: Bloom filter → Redis cache → Postgres → 302
-  → api_service: REST API → Postgres + Redis → Kafka (analytics events)
+  → api_service: REST API → Postgres + Redis → Kafka (Avro analytics events)
                                                     ↓
                                            analytics_worker (batch insert)
 ```
@@ -69,23 +73,271 @@ Client → Cloudflare CDN → NGINX
 
 **Redirect strategy:** Always 302 (browser must recheck, enabling analytics). 301 only at Cloudflare edge.
 
-**Analytics pipeline:** `api_service` produces to Kafka topic `analytics-events` (3 partitions). `analytics_worker` batch-consumes up to 500 events per poll.
+**Analytics pipeline:** `api_service` produces Avro-encoded events to Kafka topic `analytics-events` (3 partitions). `analytics_worker` batch-consumes up to 500 events per poll.
 
 ## Module Map
 
 ```
 services/
-├── api_service/        # Write path — auth, URL CRUD, user mgmt
-├── redirect_service/   # Read path — high-throughput redirect
-├── analytics_worker/   # Async Kafka consumer
-├── common/             # Shared DTOs, utilities (scaffold — nothing implemented yet)
+├── api_service/          # Write path — auth, URL CRUD, user mgmt
+├── redirect_service/     # Read path — high-throughput redirect
+├── analytics_worker/     # Async Kafka consumer
+├── common/               # Shared: domain models, DTOs, exceptions, Base62Encoder,
+│                         #   MapStruct mappers, Avro schema definitions
 └── starters/
-    ├── kafka_starter/    # Kafka auto-config (scaffold)
-    ├── postgres_starter/ # R2DBC auto-config (scaffold)
-    └── redis_starter/    # Redis Reactive auto-config (scaffold)
+    ├── kafka_starter/    # Kafka producer/consumer auto-config + Avro serializer setup
+    ├── postgres_starter/ # R2DBC auto-config + TransactionalOperator bean
+    ├── redis_starter/    # Redis Reactive auto-config
+    ├── swagger_starter/  # Springdoc OpenAPI bean + global OpenAPI config
+    └── message_starter/  # MessageSource auto-config, shared i18n YAML files
 ```
 
-The starters and `common` are **scaffolds only** — no shared code exists yet. They are also structured as `@SpringBootApplication` apps rather than library JARs, and are not yet listed as Maven dependencies in the main services.
+**common** holds shared code that has no infrastructure dependencies (models, DTOs, utilities, exceptions, Avro schemas). **Starters** wrap infrastructure auto-configuration so services import a starter instead of repeating `@Configuration` classes. No service should define its own Kafka/R2DBC/Redis/Swagger/MessageSource `@Bean` — that belongs in the appropriate starter.
+
+`ValidationMessages.properties` (Jakarta constraint messages) stays **per-service** since message keys can differ per domain.
+
+## Layered Package Structure
+
+```
+io.lvoxx.ssurl.<service>/
+├── controller/     # @RestController — delegates to service, no business logic
+├── service/        # Business logic (interface + impl); throws typed exceptions
+├── repository/     # ReactiveCrudRepository extensions
+├── config/         # @Configuration beans not provided by starters
+├── domain/         # R2DBC entity / aggregate classes (live in common if shared)
+├── exception/      # Service-specific typed exceptions (shared ones live in common)
+└── dto/
+    ├── request/    # Inbound: validated with Jakarta annotations
+    └── response/   # Outbound: mapped from domain via MapStruct
+```
+
+## Testing Patterns
+
+### Service tests — Mockito, no Spring context
+
+```java
+@ExtendWith(MockitoExtension.class)
+class UrlServiceTest {
+    @Mock UrlRepository urlRepository;
+    @Mock RedisTemplate<String, String> redisTemplate;
+    @InjectMocks UrlServiceImpl urlService;
+
+    @Test
+    void createUrl_shouldThrowWhenDomainBlacklisted() {
+        when(urlRepository.existsByDomain("spam.com")).thenReturn(Mono.just(true));
+        StepVerifier.create(urlService.createUrl(request))
+            .expectError(DomainBlacklistedException.class)
+            .verify();
+    }
+}
+```
+
+### Controller tests — `@WebFluxTest` + Mockito; cover validation paths
+
+```java
+@WebFluxTest(UrlController.class)
+class UrlControllerTest {
+    @Autowired WebTestClient webTestClient;
+    @MockitoBean UrlService urlService;
+
+    @Test
+    void createUrl_shouldReturn400WhenOriginalUrlBlank() {
+        webTestClient.post().uri("/api/v1/urls")
+            .bodyValue(new CreateUrlRequest(""))   // fails @NotBlank
+            .exchange()
+            .expectStatus().isBadRequest()
+            .expectBody().jsonPath("$.errors").isNotEmpty();
+    }
+
+    @Test
+    void createUrl_shouldReturn201OnSuccess() {
+        when(urlService.createUrl(any())).thenReturn(Mono.just(urlResponse));
+        webTestClient.post().uri("/api/v1/urls")
+            .bodyValue(validRequest)
+            .exchange()
+            .expectStatus().isCreated();
+    }
+}
+```
+
+### Repository tests — Testcontainers via shared abstract base
+
+Define a reusable abstract class (or custom `@Annotation`) in each service's `test` source set:
+
+```java
+// AbstractRepositoryTest.java (in src/test/java/.../repository)
+@DataR2dbcTest
+@Testcontainers
+@Import(PostgresTestContainerConfig.class)
+abstract class AbstractRepositoryTest {
+    // shared container lifecycle — subclasses just @Autowired their repo
+}
+
+class UrlRepositoryTest extends AbstractRepositoryTest {
+    @Autowired UrlRepository urlRepository;
+
+    @Test
+    void findByShortCode_shouldReturnUrl() { ... }
+}
+```
+
+## Error Handling
+
+**Never return hardcoded 4xx/5xx responses from controllers or services.** All errors are communicated by throwing typed exceptions. A single `@RestControllerAdvice` per service (or one in `common`) maps exceptions to `ProblemDetail` responses.
+
+```java
+// In common or per-service exception package
+public class ShortCodeNotFoundException extends RuntimeException {
+    public ShortCodeNotFoundException(String code) {
+        super("Short code not found: " + code);
+    }
+}
+
+// GlobalExceptionHandler (one per service, or shared in common)
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    private final MessageSource messageSource;
+
+    @ExceptionHandler(ShortCodeNotFoundException.class)
+    public ProblemDetail handleNotFound(ShortCodeNotFoundException ex, Locale locale) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+        pd.setDetail(messageSource.getMessage("error.shortcode.notfound", null, locale));
+        return pd;
+    }
+
+    @ExceptionHandler(WebExchangeBindException.class)   // WebFlux validation errors
+    public ProblemDetail handleValidation(WebExchangeBindException ex) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        pd.setProperty("errors", ex.getBindingResult().getFieldErrors().stream()
+            .map(e -> e.getField() + ": " + e.getDefaultMessage()).toList());
+        return pd;
+    }
+}
+```
+
+## DTOs and Validation
+
+- **Request DTOs** live in `dto/request/` and carry Jakarta validation annotations (`@NotBlank`, `@URL`, `@Size`, etc.).
+- **Response DTOs** live in `dto/response/` — never expose domain/entity classes directly.
+- Use **MapStruct** for all DTO ↔ domain conversions. No hand-written mapping code.
+
+```java
+// request/CreateUrlRequest.java
+public record CreateUrlRequest(
+    @NotBlank @URL String originalUrl,
+    @Size(max = 100) String title,
+    Instant expireAt
+) {}
+
+// response/UrlResponse.java
+public record UrlResponse(String shortCode, String originalUrl, String title,
+                          long clickCount, Instant createdAt) {}
+
+// mapper/UrlMapper.java (in common)
+@Mapper(componentModel = "spring")
+public interface UrlMapper {
+    UrlResponse toResponse(Url url);
+    Url toDomain(CreateUrlRequest request);
+}
+```
+
+## API Documentation (Swagger / OpenAPI)
+
+All controller methods **must** be annotated with Springdoc OpenAPI annotations. This is non-negotiable.
+
+```java
+@RestController
+@RequestMapping("/api/v1/urls")
+@Tag(name = "URLs", description = "Short URL management")
+public class UrlController {
+
+    @Operation(summary = "Create a short URL")
+    @ApiResponse(responseCode = "201", description = "URL created",
+        content = @Content(schema = @Schema(implementation = UrlResponse.class)))
+    @ApiResponse(responseCode = "400", description = "Validation failed")
+    @ApiResponse(responseCode = "429", description = "Rate limit exceeded")
+    @PostMapping
+    public Mono<ResponseEntity<UrlResponse>> createUrl(@Valid @RequestBody CreateUrlRequest req) { ... }
+}
+```
+
+Global `OpenAPI` bean (title, version, security scheme, servers) lives in `swagger_starter` — services just add it as a dependency and get Swagger UI at `/swagger-ui.html` with no additional config.
+
+## Internationalization (i18n)
+
+Error messages must be externalized — no hardcoded strings in exception handlers.
+
+**`message_starter`** provides the `MessageSource` bean pointing to shared YAML files (`messages/errors.yml`, `messages/common.yml`). Services import the starter and optionally add their own message files.
+
+**`ValidationMessages.properties`** stays per-service (`src/main/resources/ValidationMessages.properties`) because constraint message keys are domain-specific.
+
+```yaml
+# messages/errors.yml (in message_starter resources)
+error:
+  shortcode:
+    notfound: "Short code ''{0}'' does not exist"
+    expired: "Short code ''{0}'' has expired"
+  domain:
+    blacklisted: "The domain is not allowed"
+  ratelimit:
+    exceeded: "Too many requests. Try again in {0} seconds"
+```
+
+```java
+// Accept-Language header drives locale; Spring resolves it automatically via
+// LocaleContextHolder when MessageSource is wired through message_starter
+messageSource.getMessage("error.shortcode.notfound", new Object[]{code}, locale)
+```
+
+## Data Integrity (ACID)
+
+All multi-step database writes must be wrapped in a reactive transaction.
+
+- Use `@Transactional` on service methods (R2DBC supports it via `TransactionalOperator` under the hood).
+- For programmatic control, inject `TransactionalOperator` (provided by `postgres_starter`).
+- Read-only queries: annotate with `@Transactional(readOnly = true)` to allow connection pool optimizations.
+
+```java
+@Service
+@Transactional
+public class UrlServiceImpl implements UrlService {
+
+    @Override
+    public Mono<UrlResponse> createUrl(CreateUrlRequest request, Long userId) {
+        return urlRepository.save(urlMapper.toDomain(request))
+            .flatMap(url -> bloomFilterService.add(url.getShortCode()).thenReturn(url))
+            .map(urlMapper::toResponse);
+        // If bloomFilterService fails, the DB write is rolled back
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Flux<UrlResponse> listByUser(Long userId) {
+        return urlRepository.findAllByUserId(userId).map(urlMapper::toResponse);
+    }
+}
+```
+
+## Avro for Kafka
+
+All Kafka messages use **Avro** serialization with the Confluent Schema Registry. Schema `.avsc` files live in `common/src/main/avro/`. The `kafka_starter` configures the Avro serializer/deserializer beans globally.
+
+```json
+// common/src/main/avro/AnalyticsEvent.avsc
+{
+  "type": "record",
+  "name": "AnalyticsEvent",
+  "namespace": "io.lvoxx.ssurl.avro",
+  "fields": [
+    {"name": "shortCode", "type": "string"},
+    {"name": "ip", "type": "string"},
+    {"name": "userAgent", "type": ["null", "string"], "default": null},
+    {"name": "referer", "type": ["null", "string"], "default": null},
+    {"name": "createdAt", "type": "long", "logicalType": "timestamp-millis"}
+  ]
+}
+```
 
 ## Database Schema (database/*.sql)
 
@@ -107,32 +359,18 @@ All runtime config is injected via env vars (no hardcoded values in `application
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Postgres connection |
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | Redis connection |
 | `KAFKA_BOOTSTRAP_SERVERS` | Kafka brokers |
+| `SCHEMA_REGISTRY_URL` | Confluent Schema Registry (for Avro) |
 | `JWT_SECRET`, `JWT_ACCESS_EXPIRY` (900s), `JWT_REFRESH_EXPIRY` (604800s) | Auth tokens |
 | `SHORT_URL_BASE` | Base URL for generated short links |
 
 JWT refresh tokens are stored in HTTP-only cookies (XSS protection); access tokens in-memory only.
 
-## Layered Package Structure
-
-Follow this layout inside each service:
-
-```
-io.lvoxx.ssurl.<service>/
-├── controller/     # @RestController or RouterFunction
-├── service/        # Business logic (interfaces + impl)
-├── repository/     # ReactiveCrudRepository extensions
-├── config/         # @Configuration beans
-├── domain/         # Entity / aggregate classes
-└── dto/
-    ├── request/
-    └── response/
-```
-
 ## Known Issues
 
 1. **Invalid test dependency IDs** in `services/api_service/pom.xml` — `spring-boot-starter-data-redis-reactive-test`, `-validation-test`, `-webflux-test` don't exist. Replace with `spring-boot-starter-test`.
-2. **Starters need restructuring** — remove `spring-boot-maven-plugin` executable JAR packaging; add as `<dependency>` entries in consuming services before they can be shared.
+2. **Starters need restructuring** — remove `spring-boot-maven-plugin` executable JAR packaging; restructure as library JARs and add as `<dependency>` entries in consuming services.
 3. **SQL syntax error** in `database/urls.sql` — missing commas before `created_by`/`updated_by`.
+4. **No root POM** — each service is built independently. A root aggregator POM would allow `./mvnw test` across all modules at once.
 
 ## Reference
 

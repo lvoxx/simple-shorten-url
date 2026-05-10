@@ -1,11 +1,12 @@
 # 🔗 URL Shortener — Production-Oriented Backend System
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Java-21-orange?style=flat-square&logo=openjdk" />
-  <img src="https://img.shields.io/badge/Spring_Boot-3.x-6DB33F?style=flat-square&logo=springboot" />
+  <img src="https://img.shields.io/badge/Java-25-orange?style=flat-square&logo=openjdk" />
+  <img src="https://img.shields.io/badge/Spring_Boot-4.0.6-6DB33F?style=flat-square&logo=springboot" />
   <img src="https://img.shields.io/badge/Redis-7-DC382D?style=flat-square&logo=redis" />
   <img src="https://img.shields.io/badge/PostgreSQL-15-4169E1?style=flat-square&logo=postgresql" />
   <img src="https://img.shields.io/badge/Kafka-Aiven-231F20?style=flat-square&logo=apachekafka" />
+  <img src="https://img.shields.io/badge/Avro-Schema_Registry-E76F00?style=flat-square" />
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker" />
   <img src="https://img.shields.io/badge/Cloudflare-CDN-F38020?style=flat-square&logo=cloudflare" />
   <img src="https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF?style=flat-square&logo=githubactions" />
@@ -24,12 +25,14 @@
 |---|---|
 | ⚡ Fast Redirects | Sub-10ms on cache hit via Redis + Cloudflare edge |
 | 🔐 JWT Auth | Access + Refresh token with HTTP-only cookie |
-| 📊 Analytics | Async click tracking via Kafka (IP, UA, referer) |
+| 📊 Analytics | Async click tracking via Kafka + Avro (IP, UA, referer) |
 | 🛡️ Rate Limiting | Per-IP and per-user sliding window (Redis) |
 | 🌸 Bloom Filter | Instant rejection of invalid codes before any DB hit |
 | 🌐 CDN | Cloudflare edge caching for global low latency |
 | 🚫 Anti-Spam | Domain blacklist + behavioral abuse detection |
 | 🐳 Docker | Fully containerized, one-command local setup |
+| 📖 Swagger UI | Auto-generated API docs via Springdoc OpenAPI |
+| 🌍 i18n | Externalized error messages with YAML message sources |
 
 ---
 
@@ -58,7 +61,7 @@ User → Cloudflare CDN → NGINX → Redirect Service → Redis → 302 Redirec
 
 ### Prerequisites
 
-- Java 21+
+- Java 25+
 - Docker & Docker Compose
 - (Optional) Supabase account, Aiven account, Cloudflare account
 
