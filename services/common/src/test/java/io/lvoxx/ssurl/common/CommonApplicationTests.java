@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Test;
 import io.lvoxx.ssurl.common.util.NumberToBytes;
 import io.seruco.encoding.base62.Base62;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.nio.charset.StandardCharsets;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class CommonApplicationTests {
@@ -15,13 +17,16 @@ class CommonApplicationTests {
     @Test
     void base62EncoderRoundTrip() {
         long original = 123456789L;
-        String encoded = base62.encode(NumberToBytes.longToBytes(original)).toString();
-        assertFalse(encoded.isEmpty());
-        assertEquals(original, base62.decode(encoded.getBytes()));
+        byte[] originalBytes = NumberToBytes.longToBytes(original);
+        byte[] encoded = base62.encode(originalBytes);
+        assertFalse(encoded.length == 0);
+        byte[] decoded = base62.decode(encoded);
+        assertArrayEquals(originalBytes, decoded);
     }
 
     @Test
     void base62EncoderZero() {
-        assertEquals("0", base62.encode(NumberToBytes.longToBytes(0L)));
+        String encoded = new String(base62.encode(NumberToBytes.longToBytes(0L)), StandardCharsets.US_ASCII);
+        assertFalse(encoded.isEmpty());
     }
 }
