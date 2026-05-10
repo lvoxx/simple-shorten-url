@@ -1,7 +1,7 @@
 package io.lvoxx.ssurl.common.exception;
 
-public class ShortCodeNotFoundException extends RuntimeException {
+public class ShortCodeNotFoundException extends AppException {
     public ShortCodeNotFoundException(String code) {
-        super("Short code not found: " + code);
+        super("Short code not found: " + code, code);
     }
 }

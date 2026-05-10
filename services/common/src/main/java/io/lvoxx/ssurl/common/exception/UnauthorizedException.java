@@ -1,7 +1,7 @@
 package io.lvoxx.ssurl.common.exception;
 
-public class UnauthorizedException extends RuntimeException {
-    public UnauthorizedException(String message) {
-        super(message);
+public class UnauthorizedException extends AppException {
+    public UnauthorizedException(String reason) {
+        super("Unauthorized: " + reason, reason);
     }
 }
