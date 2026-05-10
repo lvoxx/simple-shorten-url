@@ -1,0 +1,33 @@
+package io.lvoxx.ssurl.redirect_service.exception;
+
+import io.lvoxx.ssurl.common.exception.ShortCodeNotFoundException;
+import io.lvoxx.ssurl.common.exception.UrlExpiredException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ShortCodeNotFoundException.class)
+    public ProblemDetail handleNotFound(ShortCodeNotFoundException ex) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+        pd.setDetail(ex.getMessage());
+        return pd;
+    }
+
+    @ExceptionHandler(UrlExpiredException.class)
+    public ProblemDetail handleExpired(UrlExpiredException ex) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.GONE);
+        pd.setDetail(ex.getMessage());
+        return pd;
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail handleGeneral(Exception ex) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+        pd.setDetail("An unexpected error occurred");
+        return pd;
+    }
+}
