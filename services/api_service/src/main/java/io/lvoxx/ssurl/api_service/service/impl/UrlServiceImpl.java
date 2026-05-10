@@ -13,6 +13,7 @@ import io.lvoxx.ssurl.common.exception.ShortCodeNotFoundException;
 import io.lvoxx.ssurl.common.exception.UnauthorizedException;
 import io.lvoxx.ssurl.common.exception.UrlNotFoundException;
 import io.lvoxx.ssurl.common.mapper.UrlMapper;
+import io.lvoxx.ssurl.common.util;
 import io.seruco.encoding.base62;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -67,7 +68,8 @@ public class UrlServiceImpl implements UrlService {
                     return urlRepository.save(url);
                 })
                 .flatMap(saved -> {
-                    String shortCode = base62.encode(saved.getId().getBytes());
+                    String shortCode = base62.encode(NumberToBytes.longToBytes(saved.getId()));
+                    saved.getId()
                     saved.setShortCode(shortCode);
                     return urlRepository.save(saved);
                 })
