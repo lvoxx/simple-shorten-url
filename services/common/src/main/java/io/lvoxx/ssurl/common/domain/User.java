@@ -1,16 +1,19 @@
 package io.lvoxx.ssurl.common.domain;
 
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
+import io.lvoxx.ssurl.common.domain.audit.BaseCAtUAtEntity;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
-
-import java.time.LocalDateTime;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 @Data
+@SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
@@ -24,11 +27,14 @@ public class User extends BaseCAtUAtEntity {
 
     private String email;
 
-    private String password;
+    @Column("password_hash")
+    private String passwordHash;
 
-    private String role;
+    @Builder.Default
+    private String role = "USER";
 
     @Column("is_active")
-    private boolean isActive;
+    @Builder.Default
+    private boolean isActive = true;
 
 }

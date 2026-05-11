@@ -8,11 +8,14 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import io.lvoxx.ssurl.common.domain.audit.BaseCAtCByUAtUByEntity;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 @Data
+@SuperBuilder
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
@@ -34,10 +37,12 @@ public class Url extends BaseCAtCByUAtUByEntity{
     private String title;
 
     @Column("is_active")
-    private boolean isActive;
+    @Builder.Default
+    private boolean isActive = true;
 
     @Column("click_count")
-    private long clickCount;
+    @Builder.Default
+    private long clickCount = 0l;
 
     @Column("expire_at")
     private LocalDateTime expireAt;
