@@ -1,14 +1,23 @@
 package io.lvoxx.ssurl.common.domain;
 
-import org.springframework.data.annotation.CreatedDate;
+import java.time.LocalDateTime;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
-import java.time.LocalDateTime;
+import io.lvoxx.ssurl.common.domain.audit.BaseCAtEntity;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
+@Data
+@EqualsAndHashCode(callSuper = false)
+@NoArgsConstructor
+@AllArgsConstructor
 @Table("refresh_tokens")
-public class RefreshToken {
+public class RefreshToken extends BaseCAtEntity {
 
     @Id
     private Long id;
@@ -21,30 +30,4 @@ public class RefreshToken {
     @Column("expires_at")
     private LocalDateTime expiresAt;
 
-    @CreatedDate
-    @Column("created_at")
-    private LocalDateTime createdAt;
-
-    public RefreshToken() {}
-
-    public RefreshToken(Long userId, String token, LocalDateTime expiresAt) {
-        this.userId = userId;
-        this.token = token;
-        this.expiresAt = expiresAt;
-    }
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
-
-    public String getToken() { return token; }
-    public void setToken(String token) { this.token = token; }
-
-    public LocalDateTime getExpiresAt() { return expiresAt; }
-    public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }
