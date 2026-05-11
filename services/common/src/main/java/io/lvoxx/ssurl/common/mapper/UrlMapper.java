@@ -1,8 +1,9 @@
 package io.lvoxx.ssurl.common.mapper;
 
-import io.lvoxx.ssurl.common.domain.Url;
 import io.lvoxx.ssurl.common.dto.request.CreateUrlRequest;
 import io.lvoxx.ssurl.common.dto.response.UrlResponse;
+import io.lvoxx.ssurl.common.model.Url;
+
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

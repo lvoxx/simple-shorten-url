@@ -1,12 +1,10 @@
-package io.lvoxx.ssurl.common.domain;
-
-import java.time.LocalDateTime;
+package io.lvoxx.ssurl.common.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
-import io.lvoxx.ssurl.common.domain.audit.BaseCAtEntity;
+import io.lvoxx.ssurl.common.model.audit.BaseCAtEntity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -18,18 +16,22 @@ import lombok.experimental.SuperBuilder;
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("refresh_tokens")
-public class RefreshToken extends BaseCAtEntity {
+@Table("analytics")
+public class Analytics extends BaseCAtEntity {
 
     @Id
     private Long id;
 
-    @Column("user_id")
-    private Long userId;
+    @Column("short_code")
+    private String shortCode;
 
-    private String token;
+    private String ip;
 
-    @Column("expires_at")
-    private LocalDateTime expiresAt;
+    @Column("user_agent")
+    private String userAgent;
+
+    private String referer;
+
+    private String country;
 
 }

@@ -1,4 +1,4 @@
-package io.lvoxx.ssurl.common.domain;
+package io.lvoxx.ssurl.common.model;
 
 import java.time.LocalDateTime;
 
@@ -6,7 +6,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
-import io.lvoxx.ssurl.common.domain.audit.BaseCAtCByUAtUByEntity;
+import io.lvoxx.ssurl.common.model.audit.BaseCAtCByUAtUByEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

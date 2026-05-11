@@ -1,4 +1,4 @@
-package io.lvoxx.ssurl.common.domain.audit;
+package io.lvoxx.ssurl.common.model.audit;
 
 import java.time.LocalDateTime;
 

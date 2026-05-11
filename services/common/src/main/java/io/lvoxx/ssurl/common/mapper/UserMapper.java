@@ -1,7 +1,8 @@
 package io.lvoxx.ssurl.common.mapper;
 
-import io.lvoxx.ssurl.common.domain.User;
 import io.lvoxx.ssurl.common.dto.response.UserResponse;
+import io.lvoxx.ssurl.common.model.User;
+
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

@@ -1,9 +1,9 @@
-package io.lvoxx.ssurl.common.domain;
+package io.lvoxx.ssurl.common.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
-import io.lvoxx.ssurl.common.domain.audit.BaseCAtEntity;
+import io.lvoxx.ssurl.common.model.audit.BaseCAtEntity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
