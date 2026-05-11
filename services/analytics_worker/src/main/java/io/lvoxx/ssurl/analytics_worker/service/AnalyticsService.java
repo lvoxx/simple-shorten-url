@@ -1,6 +1,6 @@
 package io.lvoxx.ssurl.analytics_worker.service;
 
-import io.lvoxx.ssurl.common.domain.Analytics;
+import io.lvoxx.ssurl.common.model.Analytics;
 import reactor.core.publisher.Mono;
 
 import java.util.List;

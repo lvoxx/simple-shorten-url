@@ -2,7 +2,7 @@ package io.lvoxx.ssurl.api_service.controller;
 
 import io.lvoxx.ssurl.api_service.repository.UserRepository;
 import io.lvoxx.ssurl.api_service.service.UrlService;
-import io.lvoxx.ssurl.common.domain.User;
+import io.lvoxx.ssurl.common.model.User;
 import io.lvoxx.ssurl.common.dto.request.CreateUrlRequest;
 import io.lvoxx.ssurl.common.dto.response.CursorPage;
 import io.lvoxx.ssurl.common.dto.response.UrlResponse;

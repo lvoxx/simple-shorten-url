@@ -2,7 +2,7 @@ package io.lvoxx.ssurl.analytics_worker.listener;
 
 import io.lvoxx.ssurl.analytics_worker.service.AnalyticsService;
 import io.lvoxx.ssurl.avro.AnalyticsEvent;
-import io.lvoxx.ssurl.common.domain.Analytics;
+import io.lvoxx.ssurl.common.model.Analytics;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

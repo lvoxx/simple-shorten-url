@@ -1,6 +1,6 @@
 package io.lvoxx.ssurl.api_service.repository;
 
-import io.lvoxx.ssurl.common.domain.DomainBlacklist;
+import io.lvoxx.ssurl.common.model.DomainBlacklist;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Mono;
 

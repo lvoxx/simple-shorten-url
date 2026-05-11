@@ -1,6 +1,6 @@
 package io.lvoxx.ssurl.analytics_worker.repository;
 
-import io.lvoxx.ssurl.common.domain.Analytics;
+import io.lvoxx.ssurl.common.model.Analytics;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Flux;
 

@@ -1,6 +1,6 @@
 package io.lvoxx.ssurl.api_service.repository;
 
-import io.lvoxx.ssurl.common.domain.Url;
+import io.lvoxx.ssurl.common.model.Url;
 import org.springframework.data.r2dbc.repository.Modifying;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;

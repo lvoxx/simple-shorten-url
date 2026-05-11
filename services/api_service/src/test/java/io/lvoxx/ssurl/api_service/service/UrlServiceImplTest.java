@@ -5,7 +5,7 @@ import io.lvoxx.ssurl.api_service.config.AppProperties;
 import io.lvoxx.ssurl.api_service.repository.DomainBlacklistRepository;
 import io.lvoxx.ssurl.api_service.repository.UrlRepository;
 import io.lvoxx.ssurl.api_service.service.impl.UrlServiceImpl;
-import io.lvoxx.ssurl.common.domain.Url;
+import io.lvoxx.ssurl.common.model.Url;
 import io.lvoxx.ssurl.common.dto.request.CreateUrlRequest;
 import io.lvoxx.ssurl.common.dto.request.UpdateUrlRequest;
 import io.lvoxx.ssurl.common.exception.DomainBlacklistedException;

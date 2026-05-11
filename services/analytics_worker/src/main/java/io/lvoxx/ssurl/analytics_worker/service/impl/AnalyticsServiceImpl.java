@@ -2,7 +2,7 @@ package io.lvoxx.ssurl.analytics_worker.service.impl;
 
 import io.lvoxx.ssurl.analytics_worker.repository.AnalyticsRepository;
 import io.lvoxx.ssurl.analytics_worker.service.AnalyticsService;
-import io.lvoxx.ssurl.common.domain.Analytics;
+import io.lvoxx.ssurl.common.model.Analytics;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
