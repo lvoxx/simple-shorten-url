@@ -17,7 +17,9 @@ import java.util.List;
 public class AnalyticsEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(AnalyticsEventListener.class);
-    private static final int MAX_BATCH_SIZE = 500;
+
+    @Value("${app.kafka.max-batch-size:500}")
+    private static final int maxBatchSize;
 
     private final AnalyticsService analyticsService;
 
@@ -34,7 +36,7 @@ public class AnalyticsEventListener {
         if (records.isEmpty()) return;
 
         List<Analytics> analyticsEvents = records.stream()
-                .limit(MAX_BATCH_SIZE)
+                .limit(maxBatchSize)
                 .map(this::toAnalytics)
                 .toList();
 

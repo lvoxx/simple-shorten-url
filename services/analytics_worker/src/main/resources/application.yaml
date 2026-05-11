@@ -1,0 +1,33 @@
+spring:
+  kafka:
+    consumer:
+      group-id: analytics-worker
+      properties:
+        schema:
+          registry:
+            url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
+        specific:
+          avro:
+            reader: 'true'
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    listener:
+      type: batch
+  application:
+    name: analytics-worker
+  r2dbc:
+    password: ${DB_PASSWORD}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+app:
+  kafka:
+    max-batch-size: '500'
+logging:
+  level:
+    io:
+      lvoxx:
+        ssurl: DEBUG
+server:
+  port: '8082'

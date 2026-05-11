@@ -1,0 +1,17 @@
+app:
+  jwt:
+    access-expiry: ${JWT_ACCESS_EXPIRY:900}
+    secret: ${JWT_SECRET}
+    refresh-expiry: ${JWT_REFRESH_EXPIRY:604800}
+  short-url-base: ${SHORT_URL_BASE:http://localhost:8081}
+logging:
+  level:
+    io:
+      lvoxx:
+        ssurl: DEBUG
+spring:
+  application:
+    name: api-service
+    
+server:
+  port: '8080'
