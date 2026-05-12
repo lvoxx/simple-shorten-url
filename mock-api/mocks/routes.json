@@ -1,0 +1,6 @@
+{
+  "/api/v1/auth/register": "/register",
+  "/api/v1/auth/login": "/login",
+  "/api/v1/urls": "/urls",
+  "/api/v1/urls/:id": "/urls/:id"
+}

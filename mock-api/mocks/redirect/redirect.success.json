@@ -1,0 +1,6 @@
+{
+  "status": 302,
+  "headers": {
+    "Location": "https://example.com"
+  }
+}

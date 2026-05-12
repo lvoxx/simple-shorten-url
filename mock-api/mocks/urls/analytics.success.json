@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "data": {
+    "shortCode": "4c92",
+    "totalClicks": 1500,
+    "period": {
+      "from": "2024-01-01",
+      "to": "2024-01-31"
+    },
+    "series": [
+      { "date": "2024-01-01", "clicks": 120 },
+      { "date": "2024-01-02", "clicks": 95 }
+    ],
+    "topCountries": [
+      { "country": "US", "clicks": 800 }
+    ]
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}

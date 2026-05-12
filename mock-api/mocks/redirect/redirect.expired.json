@@ -1,0 +1,9 @@
+{
+  "success": false,
+  "error": {
+    "code": "URL_EXPIRED",
+    "message": "Short URL has expired",
+    "details": null
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}

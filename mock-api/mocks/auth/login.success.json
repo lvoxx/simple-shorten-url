@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "refreshToken": "d3a4f5b6...",
+    "tokenType": "Bearer",
+    "expiresIn": 900
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}

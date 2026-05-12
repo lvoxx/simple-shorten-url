@@ -1,0 +1,9 @@
+{
+  "success": false,
+  "error": {
+    "code": "SHORT_CODE_NOT_FOUND",
+    "message": "Short URL not found",
+    "details": null
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}

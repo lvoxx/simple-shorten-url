@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "data": {
+    "id": 101,
+    "shortCode": "4c92",
+    "shortUrl": "https://yourdomain.com/4c92",
+    "originalUrl": "https://example.com",
+    "clickCount": 1500,
+    "createdAt": "2024-01-01T00:00:00Z",
+    "expireAt": null
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}

@@ -1,0 +1,9 @@
+{
+  "success": false,
+  "error": {
+    "code": "EMAIL_ALREADY_EXISTS",
+    "message": "Email already in use",
+    "details": null
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}

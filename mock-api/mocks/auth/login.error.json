@@ -1,0 +1,9 @@
+{
+  "success": false,
+  "error": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "Invalid email or password",
+    "details": null
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}

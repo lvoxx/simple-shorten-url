@@ -1,0 +1,9 @@
+{
+  "success": false,
+  "error": {
+    "code": "BLACKLISTED_DOMAIN",
+    "message": "Domain is blocked",
+    "details": null
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}
