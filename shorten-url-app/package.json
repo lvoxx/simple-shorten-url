@@ -12,6 +12,7 @@
   "dependencies": {
     "@nuxtjs/pwa": "^3.3.5",
     "@tailwindcss/forms": "^0.5.11",
+    "axios": "^1.16.0",
     "core-js": "^3.49.0",
     "nuxt": "^4.4.5",
     "vue": "^3.5.34",
