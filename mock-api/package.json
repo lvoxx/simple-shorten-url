@@ -1,0 +1,13 @@
+{
+  "name": "ssurl-mock-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ./mocks.js",
+    "mock": "node ./mocks.js",
+  },
+  "dependencies": {
+    "msw": "^2.14.6"
+  },
+}
