@@ -6,6 +6,7 @@ import io.lvoxx.ssurl.common.model.Analytics;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -18,13 +19,14 @@ public class AnalyticsEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(AnalyticsEventListener.class);
 
-    @Value("${app.kafka.max-batch-size:500}")
-    private static final int maxBatchSize;
-
+    private final int maxBatchSize;
     private final AnalyticsService analyticsService;
 
-    public AnalyticsEventListener(AnalyticsService analyticsService) {
+    public AnalyticsEventListener(
+            AnalyticsService analyticsService,
+            @Value("${app.kafka.max-batch-size:500}") int maxBatchSize) {
         this.analyticsService = analyticsService;
+        this.maxBatchSize = maxBatchSize;
     }
 
     @KafkaListener(

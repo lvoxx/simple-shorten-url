@@ -85,15 +85,9 @@ class UrlControllerTest {
         @Test
         @DisplayName("returns cursor page with default size when no parameters given")
         void listMyUrls_withAuthenticatedUser_returnsCursorPage() {
-            User user = new User();
-            user.setId(1L);
-            user.setUsername("alice");
-            when(userRepository.findByUsername("alice")).thenReturn(Mono.just(user));
             CursorPage<UrlResponse> page = new CursorPage<>(List.of(SAMPLE_RESPONSE), null, false);
             when(urlService.listByUser(anyLong(), isNull(), anyInt())).thenReturn(Mono.just(page));
 
-            // listMyUrls is called in the context of an authenticated user via security context;
-            // this unit test verifies it returns the page when userId resolves correctly.
             StepVerifier.create(urlService.listByUser(1L, null, 20))
                     .assertNext(p -> {
                         assertThat(p.content()).hasSize(1);

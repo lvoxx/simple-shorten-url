@@ -52,7 +52,7 @@ public class RedirectServiceImpl implements RedirectService {
                 .setIp(ip)
                 .setUserAgent(userAgent)
                 .setReferer(referer)
-                .setCreatedAt(Instant.now().toEpochMilli())
+                .setCreatedAt(Instant.now())
                 .build();
         kafkaTemplate.send("analytics-events", shortCode, event);
         urlRepository.incrementClickCount(shortCode).subscribe();

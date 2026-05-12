@@ -65,7 +65,7 @@ public class AuthServiceImpl implements AuthService {
                     User user = new User();
                     user.setUsername(request.username());
                     user.setEmail(request.email());
-                    user.setPassword(passwordEncoder.encode(request.password()));
+                    user.setPasswordHash(passwordEncoder.encode(request.password()));
                     user.setRole("USER");
                     user.setActive(true);
                     return userRepository.save(user);
@@ -78,17 +78,16 @@ public class AuthServiceImpl implements AuthService {
         return userRepository.findByUsername(request.username())
                 .switchIfEmpty(Mono.error(new UserNotFoundException(request.username())))
                 .flatMap(user -> {
-                    if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+                    if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
                         return Mono.error(new UnauthorizedException("Invalid credentials"));
                     }
                     String accessToken = jwtTokenProvider.createAccessToken(user.getUsername(), user.getRole());
                     String refreshTokenValue = jwtTokenProvider.createRefreshToken(user.getUsername());
-                    RefreshToken refreshToken = new RefreshToken(
-                            user.getId(),
-                            refreshTokenValue,
-                            LocalDateTime.now().plusSeconds(
-                                    jwtTokenProvider.getAccessExpiryMs() / 1000 * 800)
-                    );
+                    RefreshToken refreshToken = new RefreshToken();
+                    refreshToken.setUserId(user.getId());
+                    refreshToken.setToken(refreshTokenValue);
+                    refreshToken.setExpiresAt(LocalDateTime.now().plusSeconds(
+                            jwtTokenProvider.getAccessExpiryMs() / 1000 * 800));
                     return refreshTokenRepository.deleteByUserId(user.getId())
                             .then(refreshTokenRepository.save(refreshToken))
                             .map(saved -> {

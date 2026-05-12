@@ -9,6 +9,6 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface UserMapper {
 
-    @Mapping(target = "isActive", source = "isActive")
+    @Mapping(target = "isActive", source = "active")
     UserResponse toResponse(User user);
 }

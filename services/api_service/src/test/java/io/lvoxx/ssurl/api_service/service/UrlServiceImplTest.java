@@ -120,7 +120,6 @@ class UrlServiceImplTest {
         @DisplayName("throws DomainBlacklistedException for blacklisted domains")
         void createUrl_blacklistedDomain_throws() {
             CreateUrlRequest spamRequest = new CreateUrlRequest("https://spam.com/path", null, null);
-            when(urlMapper.toDomain(spamRequest)).thenReturn(new Url());
             when(domainBlacklistRepository.existsByDomain("spam.com")).thenReturn(Mono.just(true));
 
             StepVerifier.create(urlService.createUrl(spamRequest, 1L, "alice"))
