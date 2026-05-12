@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node ./mocks.js",
-    "mock": "node ./mocks.js",
+    "dev": "node ./mocks.ts",
+    "mock": "node ./mocks.ts"
   },
   "dependencies": {
     "msw": "^2.14.6"
-  },
+  }
 }
