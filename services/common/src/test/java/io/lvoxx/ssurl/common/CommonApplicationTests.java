@@ -1,17 +1,16 @@
 package io.lvoxx.ssurl.common;
 
-import org.junit.jupiter.api.Test;
-
-import io.lvoxx.ssurl.common.util.NumberToBytes;
-import io.seruco.encoding.base62.Base62;
-
-import java.nio.charset.StandardCharsets;
-
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.nio.charset.StandardCharsets;
+
+import org.junit.jupiter.api.Test;
+
+import io.lvoxx.ssurl.common.util.NumberToBytes;
+import io.seruco.encoding.base62.Base62;
 
 class CommonApplicationTests {
 
