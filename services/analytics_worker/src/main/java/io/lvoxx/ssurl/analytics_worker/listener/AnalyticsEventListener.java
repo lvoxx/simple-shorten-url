@@ -1,8 +1,8 @@
 package io.lvoxx.ssurl.analytics_worker.listener;
 
-import io.lvoxx.ssurl.analytics_worker.service.AnalyticsService;
-import io.lvoxx.ssurl.avro.AnalyticsEvent;
-import io.lvoxx.ssurl.common.model.Analytics;
+import java.time.ZoneId;
+import java.util.List;
+
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,9 +10,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
-import java.time.ZoneId;
-import java.util.List;
+import io.lvoxx.ssurl.analytics_worker.service.AnalyticsService;
+import io.lvoxx.ssurl.avro.AnalyticsEvent;
+import io.lvoxx.ssurl.common.model.Analytics;
 
 @Component
 public class AnalyticsEventListener {

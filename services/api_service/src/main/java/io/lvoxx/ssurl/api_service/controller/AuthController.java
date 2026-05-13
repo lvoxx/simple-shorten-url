@@ -78,10 +78,10 @@ public class AuthController {
     @Operation(summary = "Logout and invalidate refresh token")
     @ApiResponse(responseCode = "204", description = "Logged out successfully")
     @PostMapping("/logout")
-    public Mono<ResponseEntity<Void>> logout(
+    public Mono<ResponseEntity<?>> logout(
             @CookieValue(name = "refreshToken", required = false) String refreshToken,
             ServerHttpResponse response) {
         return authService.logout(refreshToken, response)
-                .thenReturn(ResponseEntity.<Void>noContent().build());
+                .thenReturn(ResponseEntity.noContent().build());
     }
 }

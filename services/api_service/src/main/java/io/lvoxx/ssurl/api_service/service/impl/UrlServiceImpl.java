@@ -1,11 +1,18 @@
 package io.lvoxx.ssurl.api_service.service.impl;
 
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+
+import org.redisson.api.RBloomFilter;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import io.lvoxx.ssurl.api_service.cache.UrlCacheOperations;
 import io.lvoxx.ssurl.api_service.config.AppProperties;
 import io.lvoxx.ssurl.api_service.repository.DomainBlacklistRepository;
 import io.lvoxx.ssurl.api_service.repository.UrlRepository;
 import io.lvoxx.ssurl.api_service.service.UrlService;
-import io.lvoxx.ssurl.common.model.Url;
 import io.lvoxx.ssurl.common.dto.request.CreateUrlRequest;
 import io.lvoxx.ssurl.common.dto.request.UpdateUrlRequest;
 import io.lvoxx.ssurl.common.dto.response.CursorPage;
@@ -15,17 +22,10 @@ import io.lvoxx.ssurl.common.exception.ShortCodeNotFoundException;
 import io.lvoxx.ssurl.common.exception.UnauthorizedException;
 import io.lvoxx.ssurl.common.exception.UrlNotFoundException;
 import io.lvoxx.ssurl.common.mapper.UrlMapper;
+import io.lvoxx.ssurl.common.model.Url;
 import io.lvoxx.ssurl.common.util.NumberToBytes;
 import io.seruco.encoding.base62.Base62;
-import org.redisson.api.RBloomFilter;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
-
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.util.List;
 
 @Service
 @Transactional
@@ -77,7 +77,8 @@ public class UrlServiceImpl implements UrlService {
                     return urlRepository.save(url);
                 })
                 .flatMap(saved -> {
-                    String shortCode = new String(base62.encode(NumberToBytes.longToBytes(saved.getId())), StandardCharsets.US_ASCII);
+                    String shortCode = new String(base62.encode(NumberToBytes.longToBytes(saved.getId())),
+                            StandardCharsets.US_ASCII);
                     saved.setShortCode(shortCode);
                     return urlRepository.save(saved);
                 })
@@ -163,8 +164,7 @@ public class UrlServiceImpl implements UrlService {
                 url.isActive(),
                 url.getClickCount(),
                 url.getExpireAt(),
-                url.getCreatedAt()
-        );
+                url.getCreatedAt());
     }
 
     private String extractDomain(String url) {

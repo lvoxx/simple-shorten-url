@@ -1,26 +1,27 @@
 package io.lvoxx.ssurl.analytics_worker.service.impl;
 
-import io.lvoxx.ssurl.analytics_worker.repository.AnalyticsRepository;
-import io.lvoxx.ssurl.common.model.Analytics;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import io.lvoxx.ssurl.analytics_worker.repository.AnalyticsRepository;
+import io.lvoxx.ssurl.common.model.Analytics;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
-
-import java.util.List;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AnalyticsServiceImplTest {
 
-    @Mock private AnalyticsRepository analyticsRepository;
+    @Mock
+    private AnalyticsRepository analyticsRepository;
 
     private AnalyticsServiceImpl analyticsService;
 

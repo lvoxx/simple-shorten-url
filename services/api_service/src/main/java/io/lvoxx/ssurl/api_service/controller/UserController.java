@@ -1,13 +1,5 @@
 package io.lvoxx.ssurl.api_service.controller;
 
-import io.lvoxx.ssurl.api_service.repository.UserRepository;
-import io.lvoxx.ssurl.api_service.service.UserService;
-import io.lvoxx.ssurl.common.dto.response.UserResponse;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -16,6 +8,15 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import io.lvoxx.ssurl.api_service.repository.UserRepository;
+import io.lvoxx.ssurl.api_service.service.UserService;
+import io.lvoxx.ssurl.common.dto.response.UserResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
 
 @RestController
@@ -32,8 +33,7 @@ public class UserController {
     }
 
     @Operation(summary = "Get current authenticated user info")
-    @ApiResponse(responseCode = "200", description = "User info",
-            content = @Content(schema = @Schema(implementation = UserResponse.class)))
+    @ApiResponse(responseCode = "200", description = "User info", content = @Content(schema = @Schema(implementation = UserResponse.class)))
     @ApiResponse(responseCode = "401", description = "Unauthorized")
     @GetMapping("/me")
     public Mono<ResponseEntity<UserResponse>> getMe() {
@@ -43,8 +43,7 @@ public class UserController {
     }
 
     @Operation(summary = "Update current user's email address")
-    @ApiResponse(responseCode = "200", description = "Email updated",
-            content = @Content(schema = @Schema(implementation = UserResponse.class)))
+    @ApiResponse(responseCode = "200", description = "Email updated", content = @Content(schema = @Schema(implementation = UserResponse.class)))
     @ApiResponse(responseCode = "400", description = "Invalid email")
     @ApiResponse(responseCode = "401", description = "Unauthorized")
     @PutMapping("/me/email")
@@ -58,10 +57,10 @@ public class UserController {
     @ApiResponse(responseCode = "204", description = "Account deactivated")
     @ApiResponse(responseCode = "401", description = "Unauthorized")
     @DeleteMapping("/me")
-    public Mono<ResponseEntity<Void>> deactivateAccount() {
+    public Mono<ResponseEntity<?>> deactivateAccount() {
         return getCurrentUserId()
                 .flatMap(userService::deactivate)
-                .thenReturn(ResponseEntity.<Void>noContent().build());
+                .thenReturn(ResponseEntity.noContent().build());
     }
 
     private Mono<Long> getCurrentUserId() {

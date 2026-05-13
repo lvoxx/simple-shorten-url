@@ -1,25 +1,5 @@
 package io.lvoxx.ssurl.api_service.controller;
 
-import io.lvoxx.ssurl.api_service.repository.UserRepository;
-import io.lvoxx.ssurl.api_service.service.UrlService;
-import io.lvoxx.ssurl.common.model.User;
-import io.lvoxx.ssurl.common.dto.request.CreateUrlRequest;
-import io.lvoxx.ssurl.common.dto.response.CursorPage;
-import io.lvoxx.ssurl.common.dto.response.UrlResponse;
-import io.lvoxx.ssurl.common.exception.DomainBlacklistedException;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import reactor.core.publisher.Mono;
-import reactor.test.StepVerifier;
-
-import java.time.LocalDateTime;
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -27,6 +7,26 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import io.lvoxx.ssurl.api_service.repository.UserRepository;
+import io.lvoxx.ssurl.api_service.service.UrlService;
+import io.lvoxx.ssurl.common.dto.request.CreateUrlRequest;
+import io.lvoxx.ssurl.common.dto.response.CursorPage;
+import io.lvoxx.ssurl.common.dto.response.UrlResponse;
+import io.lvoxx.ssurl.common.exception.DomainBlacklistedException;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 
 @ExtendWith(MockitoExtension.class)
 class UrlControllerTest {

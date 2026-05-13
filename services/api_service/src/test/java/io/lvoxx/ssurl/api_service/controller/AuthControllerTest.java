@@ -1,12 +1,11 @@
 package io.lvoxx.ssurl.api_service.controller;
 
-import io.lvoxx.ssurl.api_service.service.AuthService;
-import io.lvoxx.ssurl.common.dto.request.LoginRequest;
-import io.lvoxx.ssurl.common.dto.request.RegisterRequest;
-import io.lvoxx.ssurl.common.dto.response.AuthResponse;
-import io.lvoxx.ssurl.common.dto.response.UserResponse;
-import io.lvoxx.ssurl.common.exception.UnauthorizedException;
-import io.lvoxx.ssurl.common.exception.UserAlreadyExistsException;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.time.LocalDateTime;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -16,16 +15,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
+
+import io.lvoxx.ssurl.api_service.service.AuthService;
+import io.lvoxx.ssurl.common.dto.request.LoginRequest;
+import io.lvoxx.ssurl.common.dto.request.RegisterRequest;
+import io.lvoxx.ssurl.common.dto.response.AuthResponse;
+import io.lvoxx.ssurl.common.dto.response.UserResponse;
+import io.lvoxx.ssurl.common.exception.UnauthorizedException;
+import io.lvoxx.ssurl.common.exception.UserAlreadyExistsException;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
-
-import java.time.LocalDateTime;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {

@@ -1,11 +1,17 @@
 package io.lvoxx.ssurl.api_service.service.impl;
 
+import java.time.LocalDateTime;
+
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import io.lvoxx.ssurl.api_service.repository.RefreshTokenRepository;
 import io.lvoxx.ssurl.api_service.repository.UserRepository;
 import io.lvoxx.ssurl.api_service.security.JwtTokenProvider;
 import io.lvoxx.ssurl.api_service.service.AuthService;
-import io.lvoxx.ssurl.common.model.RefreshToken;
-import io.lvoxx.ssurl.common.model.User;
 import io.lvoxx.ssurl.common.dto.request.LoginRequest;
 import io.lvoxx.ssurl.common.dto.request.RegisterRequest;
 import io.lvoxx.ssurl.common.dto.response.AuthResponse;
@@ -14,15 +20,9 @@ import io.lvoxx.ssurl.common.exception.UnauthorizedException;
 import io.lvoxx.ssurl.common.exception.UserAlreadyExistsException;
 import io.lvoxx.ssurl.common.exception.UserNotFoundException;
 import io.lvoxx.ssurl.common.mapper.UserMapper;
-import org.springframework.http.HttpCookie;
-import org.springframework.http.ResponseCookie;
-import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import io.lvoxx.ssurl.common.model.RefreshToken;
+import io.lvoxx.ssurl.common.model.User;
 import reactor.core.publisher.Mono;
-
-import java.time.LocalDateTime;
 
 @Service
 @Transactional

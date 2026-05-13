@@ -97,10 +97,10 @@ public class UrlController {
     @ApiResponse(responseCode = "404", description = "URL not found")
     @ApiResponse(responseCode = "401", description = "Unauthorized")
     @DeleteMapping("/{id}")
-    public Mono<ResponseEntity<Void>> deleteUrl(@PathVariable Long id) {
+    public Mono<ResponseEntity<?>> deleteUrl(@PathVariable Long id) {
         return getCurrentUserId()
                 .flatMap(userId -> urlService.delete(id, userId))
-                .thenReturn(ResponseEntity.<Void>noContent().build());
+                .thenReturn(ResponseEntity.noContent().build());
     }
 
     private Mono<Long> getCurrentUserId() {
