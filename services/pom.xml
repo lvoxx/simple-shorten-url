@@ -63,6 +63,7 @@
         <testcontainers.version>1.21.4</testcontainers.version>
         <testcontainers.redis.version>2.2.2</testcontainers.redis.version>
         <spring-boot.version>4.0.6</spring-boot.version>
+        <reactor-test.version>3.8.5</reactor-test.version>
 
     </properties>
 
@@ -185,6 +186,14 @@
                 <artifactId>jjwt-jackson</artifactId>
                 <version>${jjwt.version}</version>
                 <scope>runtime</scope>
+            </dependency>
+
+            <!-- Test -->
+            <dependency>
+                <groupId>io.projectreactor</groupId>
+                <artifactId>reactor-test</artifactId>
+                <version>${reactor-test.version}</version>
+                <scope>test</scope>
             </dependency>
 
             <!-- Testcontainers -->

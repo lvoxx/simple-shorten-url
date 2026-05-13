@@ -1,16 +1,29 @@
 package io.lvoxx.ssurl.redirect_service.repository;
 
-import io.lvoxx.ssurl.common.model.Url;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
-import reactor.test.StepVerifier;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Tags;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.r2dbc.test.autoconfigure.DataR2dbcTest;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.context.ActiveProfiles;
 
-class UrlRepositoryTest extends AbstractRepositoryTest {
+import io.lvoxx.ssurl.common.model.Url;
+import io.lvoxx.ssurl.test_starter.AbstractPostgresContainer;
+import reactor.test.StepVerifier;
+
+@DataR2dbcTest
+@ActiveProfiles("repo")
+@DisplayName("Url Repository Tests")
+@Tags({
+                @Tag("Repository"), @Tag("Integration")
+})
+class UrlRepositoryTest extends AbstractPostgresContainer {
 
     @Autowired
     private UrlRepository urlRepository;

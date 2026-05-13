@@ -1,19 +1,31 @@
 package io.lvoxx.ssurl.api_service.repository;
 
-import io.lvoxx.ssurl.common.model.Url;
-import io.lvoxx.ssurl.common.model.User;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Duration;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Tags;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.r2dbc.test.autoconfigure.DataR2dbcTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.context.ActiveProfiles;
+
+import io.lvoxx.ssurl.common.model.Url;
+import io.lvoxx.ssurl.common.model.User;
+import io.lvoxx.ssurl.test_starter.AbstractPostgresContainer;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-class UrlRepositoryTest extends AbstractRepositoryTest {
+@DataR2dbcTest
+@ActiveProfiles("repo")
+@DisplayName("Url Repository Tests")
+@Tags({
+                @Tag("Repository"), @Tag("Integration")
+})
+class UrlRepositoryTest extends AbstractPostgresContainer {
 
     @Autowired
     private UrlRepository urlRepository;
@@ -141,7 +153,7 @@ class UrlRepositoryTest extends AbstractRepositoryTest {
                             .shortCode("top03").originalUrl("https://top3.com").userId(user.getId()).build());
                     return url1.then(url2).then(url3).thenReturn(user);
                 })
-                .flatMapMany(user -> urlRepository.findTopByUserIdOrderByIdDesc(user.getId(), 2))
+                .flatMap(user -> urlRepository.findTopByUserIdOrderByIdDesc(user.getId(), 2))
                 .as(StepVerifier::create)
                 .assertNext(url -> assertThat(url.getShortCode()).isIn("top03", "top02"))
                 .assertNext(url -> assertThat(url.getShortCode()).isIn("top03", "top02"))
@@ -163,7 +175,7 @@ class UrlRepositoryTest extends AbstractRepositoryTest {
                             .shortCode("cur04").originalUrl("https://cur4.com").userId(user.getId()).build());
                     return url1.then(url2).then(url3).then(url4).thenReturn(user);
                 })
-                .flatMapMany(user -> urlRepository.findByUserIdAndIdLessThanOrderByIdDesc(
+                .flatMap(user -> urlRepository.findByUserIdAndIdLessThanOrderByIdDesc(
                         user.getId(), 4L, 2))
                 .as(StepVerifier::create)
                 .assertNext(url -> assertThat(url.getShortCode()).isIn("cur03", "cur02"))

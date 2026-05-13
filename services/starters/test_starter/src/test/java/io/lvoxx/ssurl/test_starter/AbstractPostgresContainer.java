@@ -23,7 +23,7 @@ public class AbstractPostgresContainer {
                 .withDatabaseName("test")
                 .withUsername("root")
                 .withPassword("Te3tP4ssW@r$")
-                // .withInitScript("customer_test.sql")
+                .withInitScript("sql/init-schema.sql")
                 .withReuse(true);
     }
 

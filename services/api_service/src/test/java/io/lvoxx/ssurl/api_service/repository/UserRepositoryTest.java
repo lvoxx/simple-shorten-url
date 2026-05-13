@@ -1,16 +1,29 @@
 package io.lvoxx.ssurl.api_service.repository;
 
-import io.lvoxx.ssurl.common.model.User;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
-import reactor.test.StepVerifier;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Tags;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.r2dbc.test.autoconfigure.DataR2dbcTest;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.context.ActiveProfiles;
 
-class UserRepositoryTest extends AbstractRepositoryTest {
+import io.lvoxx.ssurl.common.model.User;
+import io.lvoxx.ssurl.test_starter.AbstractPostgresContainer;
+import reactor.test.StepVerifier;
+
+@DataR2dbcTest
+@ActiveProfiles("repo")
+@DisplayName("User Repository Tests")
+@Tags({
+                @Tag("Repository"), @Tag("Integration")
+})
+class UserRepositoryTest extends AbstractPostgresContainer {
 
     @Autowired
     private UserRepository userRepository;

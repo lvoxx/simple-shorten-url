@@ -1,16 +1,29 @@
 package io.lvoxx.ssurl.api_service.repository;
 
-import io.lvoxx.ssurl.common.model.DomainBlacklist;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
-import reactor.test.StepVerifier;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Tags;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.r2dbc.test.autoconfigure.DataR2dbcTest;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.context.ActiveProfiles;
 
-class DomainBlacklistRepositoryTest extends AbstractRepositoryTest {
+import io.lvoxx.ssurl.common.model.DomainBlacklist;
+import io.lvoxx.ssurl.test_starter.AbstractPostgresContainer;
+import reactor.test.StepVerifier;
+
+@DataR2dbcTest
+@ActiveProfiles("repo")
+@DisplayName("Domain Blacklist Repository Tests")
+@Tags({
+        @Tag("Repository"), @Tag("Integration")
+})
+class DomainBlacklistRepositoryTest extends AbstractPostgresContainer {
 
     @Autowired
     private DomainBlacklistRepository domainBlacklistRepository;
@@ -18,9 +31,9 @@ class DomainBlacklistRepositoryTest extends AbstractRepositoryTest {
     @Test
     void should_saveDomain_when_validData() {
         domainBlacklistRepository.save(DomainBlacklist.builder()
-                        .domain("spam.com")
-                        .reason("Known spammer")
-                        .build())
+                .domain("spam.com")
+                .reason("Known spammer")
+                .build())
                 .as(StepVerifier::create)
                 .assertNext(d -> {
                     assertThat(d.getId()).isNotNull();
@@ -35,8 +48,8 @@ class DomainBlacklistRepositoryTest extends AbstractRepositoryTest {
     @Test
     void should_saveDomain_when_reasonDefault() {
         domainBlacklistRepository.save(DomainBlacklist.builder()
-                        .domain("default-reason.com")
-                        .build())
+                .domain("default-reason.com")
+                .build())
                 .as(StepVerifier::create)
                 .assertNext(d -> {
                     assertThat(d.getId()).isNotNull();
@@ -49,8 +62,8 @@ class DomainBlacklistRepositoryTest extends AbstractRepositoryTest {
     @Test
     void should_returnDomain_when_findById() {
         domainBlacklistRepository.save(DomainBlacklist.builder()
-                        .domain("findbyid-bl.com")
-                        .build())
+                .domain("findbyid-bl.com")
+                .build())
                 .flatMap(saved -> domainBlacklistRepository.findById(saved.getId()))
                 .as(StepVerifier::create)
                 .assertNext(d -> assertThat(d.getDomain()).isEqualTo("findbyid-bl.com"))
@@ -69,8 +82,8 @@ class DomainBlacklistRepositoryTest extends AbstractRepositoryTest {
     @Test
     void should_returnTrue_when_existsByDomain() {
         domainBlacklistRepository.save(DomainBlacklist.builder()
-                        .domain("exists-bl.com")
-                        .build())
+                .domain("exists-bl.com")
+                .build())
                 .flatMap(d -> domainBlacklistRepository.existsByDomain("exists-bl.com"))
                 .as(StepVerifier::create)
                 .assertNext(exists -> assertThat(exists).isTrue())
@@ -90,9 +103,9 @@ class DomainBlacklistRepositoryTest extends AbstractRepositoryTest {
     @Test
     void should_findByDomain_when_exists() {
         domainBlacklistRepository.save(DomainBlacklist.builder()
-                        .domain("finddomain-bl.com")
-                        .reason("phishing")
-                        .build())
+                .domain("finddomain-bl.com")
+                .reason("phishing")
+                .build())
                 .flatMap(d -> domainBlacklistRepository.findByDomain("finddomain-bl.com"))
                 .as(StepVerifier::create)
                 .assertNext(d -> assertThat(d.getReason()).isEqualTo("phishing"))
@@ -132,9 +145,9 @@ class DomainBlacklistRepositoryTest extends AbstractRepositoryTest {
     @Test
     void should_updateReason_when_valid() {
         domainBlacklistRepository.save(DomainBlacklist.builder()
-                        .domain("update-bl.com")
-                        .reason("old reason")
-                        .build())
+                .domain("update-bl.com")
+                .reason("old reason")
+                .build())
                 .flatMap(d -> {
                     d.setReason("new reason");
                     return domainBlacklistRepository.save(d);
@@ -148,8 +161,8 @@ class DomainBlacklistRepositoryTest extends AbstractRepositoryTest {
     @Test
     void should_deleteDomain_when_validId() {
         domainBlacklistRepository.save(DomainBlacklist.builder()
-                        .domain("delete-bl.com")
-                        .build())
+                .domain("delete-bl.com")
+                .build())
                 .flatMap(d -> domainBlacklistRepository.deleteById(d.getId())
                         .then(domainBlacklistRepository.findById(d.getId())))
                 .as(StepVerifier::create)
