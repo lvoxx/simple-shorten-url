@@ -19,10 +19,11 @@
 
     <modules>
         <module>kafka_starter</module>
+        <module>message_starter</module>
         <module>postgres_starter</module>
         <module>redis_starter</module>
         <module>swagger_starter</module>
-        <module>message_starter</module>
+        <module>test_starter</module>
     </modules>
 
 </project>
