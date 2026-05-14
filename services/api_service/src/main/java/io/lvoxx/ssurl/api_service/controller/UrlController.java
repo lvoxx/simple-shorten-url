@@ -32,81 +32,86 @@ import reactor.core.publisher.Mono;
 @Tag(name = "URLs", description = "Short URL management")
 public class UrlController {
 
-    private final UrlService urlService;
-    private final UserRepository userRepository;
+        private final UrlService urlService;
+        private final UserRepository userRepository;
 
-    public UrlController(UrlService urlService, UserRepository userRepository) {
-        this.urlService = urlService;
-        this.userRepository = userRepository;
-    }
+        public UrlController(UrlService urlService, UserRepository userRepository) {
+                this.urlService = urlService;
+                this.userRepository = userRepository;
+        }
 
-    @Operation(summary = "Create a short URL (works for both authenticated and anonymous users)")
-    @ApiResponse(responseCode = "201", description = "URL created",
-            content = @Content(schema = @Schema(implementation = UrlResponse.class)))
-    @ApiResponse(responseCode = "400", description = "Validation failed")
-    @ApiResponse(responseCode = "422", description = "Domain is blacklisted")
-    @ApiResponse(responseCode = "429", description = "Rate limit exceeded")
-    @PostMapping
-    public Mono<ResponseEntity<UrlResponse>> createUrl(@Valid @RequestBody CreateUrlRequest request) {
-        return ReactiveSecurityContextHolder.getContext()
-                .map(ctx -> ctx.getAuthentication().getName())
-                .flatMap(userRepository::findByUsername)
-                .flatMap(user -> urlService.createUrl(request, user.getId(), user.getUsername()))
-                .switchIfEmpty(urlService.createUrl(request, null, "anonymous"))
-                .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response));
-    }
+        @Operation(summary = "Create a short URL (works for both authenticated and anonymous users)", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "URL to shorten with optional title and expiration", content = @Content(schema = @Schema(implementation = CreateUrlRequest.class))))
+        @ApiResponse(responseCode = "201", description = "URL created", content = @Content(schema = @Schema(implementation = UrlResponse.class)))
+        @ApiResponse(responseCode = "400", description = "Validation failed")
+        @ApiResponse(responseCode = "422", description = "Domain is blacklisted")
+        @ApiResponse(responseCode = "429", description = "Rate limit exceeded")
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @PostMapping
+        public Mono<ResponseEntity<UrlResponse>> createUrl(@Valid @RequestBody CreateUrlRequest request) {
+                return ReactiveSecurityContextHolder.getContext()
+                                .map(ctx -> ctx.getAuthentication().getName())
+                                .flatMap(userRepository::findByUsername)
+                                .flatMap(user -> urlService.createUrl(request, user.getId(), user.getUsername()))
+                                .switchIfEmpty(urlService.createUrl(request, null, "anonymous"))
+                                .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response));
+        }
 
-    @Operation(summary = "Get URL by short code")
-    @ApiResponse(responseCode = "200", description = "URL found",
-            content = @Content(schema = @Schema(implementation = UrlResponse.class)))
-    @ApiResponse(responseCode = "404", description = "Short code not found")
-    @GetMapping("/{shortCode}")
-    public Mono<ResponseEntity<UrlResponse>> getByShortCode(@PathVariable String shortCode) {
-        return urlService.getByShortCode(shortCode)
-                .map(ResponseEntity::ok);
-    }
+        @Operation(summary = "Get URL by short code")
+        @ApiResponse(responseCode = "200", description = "URL found", content = @Content(schema = @Schema(implementation = UrlResponse.class)))
+        @ApiResponse(responseCode = "404", description = "Short code not found")
+        @ApiResponse(responseCode = "410", description = "Short code has expired")
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @GetMapping("/{shortCode}")
+        public Mono<ResponseEntity<UrlResponse>> getByShortCode(
+                        @Parameter(description = "Short code (Base62 encoded ID)", example = "1aB3xZ") @PathVariable String shortCode) {
+                return urlService.getByShortCode(shortCode)
+                                .map(ResponseEntity::ok);
+        }
 
-    @Operation(summary = "List current user's URLs with cursor-based pagination")
-    @ApiResponse(responseCode = "200", description = "Paginated list of URLs")
-    @GetMapping("/my")
-    public Mono<CursorPage<UrlResponse>> listMyUrls(
-            @Parameter(description = "Cursor: ID of the last item from the previous page")
-            @RequestParam(required = false) Long cursor,
-            @Parameter(description = "Page size (max 100, default 20)")
-            @RequestParam(defaultValue = "20") int size) {
-        return getCurrentUserId()
-                .flatMap(userId -> urlService.listByUser(userId, cursor, size));
-    }
+        @Operation(summary = "List current user's URLs with cursor-based pagination")
+        @ApiResponse(responseCode = "200", description = "Paginated list of URLs", content = @Content(schema = @Schema(implementation = CursorPage.class)))
+        @ApiResponse(responseCode = "401", description = "Unauthorized")
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @GetMapping("/my")
+        public Mono<CursorPage<UrlResponse>> listMyUrls(
+                        @Parameter(description = "Cursor: ID of the last item from the previous page (omit for first page)", example = "42") @RequestParam(required = false) Long cursor,
+                        @Parameter(description = "Page size (max 100, default 20)", example = "20") @RequestParam(defaultValue = "20") int size) {
+                return getCurrentUserId()
+                                .flatMap(userId -> urlService.listByUser(userId, cursor, size));
+        }
 
-    @Operation(summary = "Update a URL")
-    @ApiResponse(responseCode = "200", description = "URL updated",
-            content = @Content(schema = @Schema(implementation = UrlResponse.class)))
-    @ApiResponse(responseCode = "404", description = "URL not found")
-    @ApiResponse(responseCode = "401", description = "Unauthorized")
-    @PutMapping("/{id}")
-    public Mono<ResponseEntity<UrlResponse>> updateUrl(
-            @PathVariable Long id,
-            @Valid @RequestBody UpdateUrlRequest request) {
-        return getCurrentUserId()
-                .flatMap(userId -> urlService.update(id, request, userId))
-                .map(ResponseEntity::ok);
-    }
+        @Operation(summary = "Update a URL", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Fields to update (title, expireAt, isActive)", content = @Content(schema = @Schema(implementation = UpdateUrlRequest.class))))
+        @ApiResponse(responseCode = "200", description = "URL updated", content = @Content(schema = @Schema(implementation = UrlResponse.class)))
+        @ApiResponse(responseCode = "400", description = "Validation failed")
+        @ApiResponse(responseCode = "401", description = "Unauthorized")
+        @ApiResponse(responseCode = "404", description = "URL not found")
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @PutMapping("/{id}")
+        public Mono<ResponseEntity<UrlResponse>> updateUrl(
+                        @Parameter(description = "URL record ID", example = "1") @PathVariable Long id,
+                        @Valid @RequestBody UpdateUrlRequest request) {
+                return getCurrentUserId()
+                                .flatMap(userId -> urlService.update(id, request, userId))
+                                .map(ResponseEntity::ok);
+        }
 
-    @Operation(summary = "Delete (deactivate) a URL")
-    @ApiResponse(responseCode = "204", description = "URL deleted")
-    @ApiResponse(responseCode = "404", description = "URL not found")
-    @ApiResponse(responseCode = "401", description = "Unauthorized")
-    @DeleteMapping("/{id}")
-    public Mono<ResponseEntity<?>> deleteUrl(@PathVariable Long id) {
-        return getCurrentUserId()
-                .flatMap(userId -> urlService.delete(id, userId))
-                .thenReturn(ResponseEntity.noContent().build());
-    }
+        @Operation(summary = "Delete (deactivate) a URL")
+        @ApiResponse(responseCode = "204", description = "URL deleted")
+        @ApiResponse(responseCode = "401", description = "Unauthorized")
+        @ApiResponse(responseCode = "404", description = "URL not found")
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @DeleteMapping("/{id}")
+        public Mono<ResponseEntity<?>> deleteUrl(
+                        @Parameter(description = "URL record ID", example = "1") @PathVariable Long id) {
+                return getCurrentUserId()
+                                .flatMap(userId -> urlService.delete(id, userId))
+                                .thenReturn(ResponseEntity.noContent().build());
+        }
 
-    private Mono<Long> getCurrentUserId() {
-        return ReactiveSecurityContextHolder.getContext()
-                .map(ctx -> ctx.getAuthentication().getName())
-                .flatMap(userRepository::findByUsername)
-                .map(user -> user.getId());
-    }
+        private Mono<Long> getCurrentUserId() {
+                return ReactiveSecurityContextHolder.getContext()
+                                .map(ctx -> ctx.getAuthentication().getName())
+                                .flatMap(userRepository::findByUsername)
+                                .map(user -> user.getId());
+        }
 }

@@ -6,6 +6,7 @@ import io.lvoxx.ssurl.common.dto.request.RegisterRequest;
 import io.lvoxx.ssurl.common.dto.response.AuthResponse;
 import io.lvoxx.ssurl.common.dto.response.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -27,61 +28,62 @@ import reactor.core.publisher.Mono;
 @Tag(name = "Auth", description = "Authentication endpoints")
 public class AuthController {
 
-    private final AuthService authService;
+        private final AuthService authService;
 
-    public AuthController(AuthService authService) {
-        this.authService = authService;
-    }
-
-    @Operation(summary = "Register a new user")
-    @ApiResponse(responseCode = "201", description = "User registered",
-            content = @Content(schema = @Schema(implementation = UserResponse.class)))
-    @ApiResponse(responseCode = "400", description = "Validation failed")
-    @ApiResponse(responseCode = "409", description = "User already exists")
-    @PostMapping("/register")
-    public Mono<ResponseEntity<UserResponse>> register(@Valid @RequestBody RegisterRequest request) {
-        return authService.register(request)
-                .map(user -> ResponseEntity.status(HttpStatus.CREATED).body(user));
-    }
-
-    @Operation(summary = "Login with username and password")
-    @ApiResponse(responseCode = "200", description = "Login successful",
-            content = @Content(schema = @Schema(implementation = AuthResponse.class)))
-    @ApiResponse(responseCode = "400", description = "Validation failed")
-    @ApiResponse(responseCode = "401", description = "Invalid credentials")
-    @PostMapping("/login")
-    public Mono<ResponseEntity<AuthResponse>> login(
-            @Valid @RequestBody LoginRequest request,
-            ServerHttpResponse response) {
-        return authService.login(request, response)
-                .map(ResponseEntity::ok);
-    }
-
-    @Operation(summary = "Refresh access token using refresh token cookie")
-    @ApiResponse(responseCode = "200", description = "Token refreshed",
-            content = @Content(schema = @Schema(implementation = AuthResponse.class)))
-    @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
-    @PostMapping("/refresh")
-    public Mono<ResponseEntity<AuthResponse>> refresh(
-            @CookieValue(name = "refreshToken", required = false) String refreshTokenFromCookie,
-            ServerHttpRequest request) {
-        String refreshToken = refreshTokenFromCookie;
-        if (refreshToken == null) {
-            String authHeader = request.getHeaders().getFirst("X-Refresh-Token");
-            refreshToken = authHeader;
+        public AuthController(AuthService authService) {
+                this.authService = authService;
         }
-        final String token = refreshToken;
-        return authService.refresh(token)
-                .map(ResponseEntity::ok);
-    }
 
-    @Operation(summary = "Logout and invalidate refresh token")
-    @ApiResponse(responseCode = "204", description = "Logged out successfully")
-    @PostMapping("/logout")
-    public Mono<ResponseEntity<?>> logout(
-            @CookieValue(name = "refreshToken", required = false) String refreshToken,
-            ServerHttpResponse response) {
-        return authService.logout(refreshToken, response)
-                .thenReturn(ResponseEntity.noContent().build());
-    }
+        @Operation(summary = "Register a new user", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Registration details with username, email, and password", content = @Content(schema = @Schema(implementation = RegisterRequest.class))))
+        @ApiResponse(responseCode = "201", description = "User registered", content = @Content(schema = @Schema(implementation = UserResponse.class)))
+        @ApiResponse(responseCode = "400", description = "Validation failed")
+        @ApiResponse(responseCode = "409", description = "User already exists")
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @PostMapping("/register")
+        public Mono<ResponseEntity<UserResponse>> register(@Valid @RequestBody RegisterRequest request) {
+                return authService.register(request)
+                                .map(user -> ResponseEntity.status(HttpStatus.CREATED).body(user));
+        }
+
+        @Operation(summary = "Login with username and password", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Login credentials", content = @Content(schema = @Schema(implementation = LoginRequest.class))))
+        @ApiResponse(responseCode = "200", description = "Login successful", content = @Content(schema = @Schema(implementation = AuthResponse.class)))
+        @ApiResponse(responseCode = "400", description = "Validation failed")
+        @ApiResponse(responseCode = "401", description = "Invalid credentials")
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @PostMapping("/login")
+        public Mono<ResponseEntity<AuthResponse>> login(
+                        @Valid @RequestBody LoginRequest request,
+                        ServerHttpResponse response) {
+                return authService.login(request, response)
+                                .map(ResponseEntity::ok);
+        }
+
+        @Operation(summary = "Refresh access token using refresh token cookie or X-Refresh-Token header")
+        @ApiResponse(responseCode = "200", description = "Token refreshed", content = @Content(schema = @Schema(implementation = AuthResponse.class)))
+        @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @PostMapping("/refresh")
+        public Mono<ResponseEntity<AuthResponse>> refresh(
+                        @Parameter(description = "Refresh token sent as an HTTP-only cookie") @CookieValue(name = "refreshToken", required = false) String refreshTokenFromCookie,
+                        ServerHttpRequest request) {
+                String refreshToken = refreshTokenFromCookie;
+                if (refreshToken == null) {
+                        String authHeader = request.getHeaders().getFirst("X-Refresh-Token");
+                        refreshToken = authHeader;
+                }
+                final String token = refreshToken;
+                return authService.refresh(token)
+                                .map(ResponseEntity::ok);
+        }
+
+        @Operation(summary = "Logout and invalidate refresh token")
+        @ApiResponse(responseCode = "204", description = "Logged out successfully")
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @PostMapping("/logout")
+        public Mono<ResponseEntity<?>> logout(
+                        @Parameter(description = "Refresh token sent as an HTTP-only cookie") @CookieValue(name = "refreshToken", required = false) String refreshToken,
+                        ServerHttpResponse response) {
+                return authService.logout(refreshToken, response)
+                                .thenReturn(ResponseEntity.noContent().build());
+        }
 }
