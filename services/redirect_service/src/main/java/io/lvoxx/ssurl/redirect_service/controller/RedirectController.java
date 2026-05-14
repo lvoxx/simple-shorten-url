@@ -2,6 +2,9 @@ package io.lvoxx.ssurl.redirect_service.controller;
 
 import io.lvoxx.ssurl.redirect_service.service.RedirectService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpHeaders;
@@ -20,35 +23,35 @@ import java.util.Objects;
 @Tag(name = "Redirect", description = "Short URL redirect endpoint")
 public class RedirectController {
 
-    private final RedirectService redirectService;
+        private final RedirectService redirectService;
 
-    public RedirectController(RedirectService redirectService) {
-        this.redirectService = redirectService;
-    }
+        public RedirectController(RedirectService redirectService) {
+                this.redirectService = redirectService;
+        }
 
-    @Operation(summary = "Redirect to original URL")
-    @ApiResponse(responseCode = "302", description = "Redirect to original URL")
-    @ApiResponse(responseCode = "404", description = "Short code not found")
-    @ApiResponse(responseCode = "410", description = "URL has expired")
-    @GetMapping("/{shortCode:[a-zA-Z0-9]+}")
-    public Mono<ResponseEntity<Void>> redirect(
-            @PathVariable String shortCode,
-            ServerHttpRequest request) {
-        String ip = Objects.requireNonNullElse(
-                request.getHeaders().getFirst("X-Forwarded-For"),
-                Objects.requireNonNullElse(
-                        request.getRemoteAddress() != null
-                                ? request.getRemoteAddress().getAddress().getHostAddress()
-                                : null,
-                        "unknown"
-                )
-        );
-        String userAgent = request.getHeaders().getFirst(HttpHeaders.USER_AGENT);
-        String referer = request.getHeaders().getFirst(HttpHeaders.REFERER);
+        @Operation(summary = "Redirect to original URL by short code")
+        @ApiResponse(responseCode = "302", description = "Redirect to original URL", headers = @Header(name = "Location", description = "Original URL", schema = @Schema(type = "string")))
+        @ApiResponse(responseCode = "404", description = "Short code not found")
+        @ApiResponse(responseCode = "410", description = "URL has expired")
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @GetMapping("/{shortCode:[a-zA-Z0-9]+}")
+        public Mono<ResponseEntity<Void>> redirect(
+                        @Parameter(description = "Short code (Base62 encoded ID)", example = "1aB3xZ", required = true) @PathVariable String shortCode,
+                        ServerHttpRequest request) {
+                String ip = Objects.requireNonNullElse(
+                                request.getHeaders().getFirst("X-Forwarded-For"),
+                                Objects.requireNonNullElse(
+                                                request.getRemoteAddress() != null
+                                                                ? request.getRemoteAddress().getAddress()
+                                                                                .getHostAddress()
+                                                                : null,
+                                                "unknown"));
+                String userAgent = request.getHeaders().getFirst(HttpHeaders.USER_AGENT);
+                String referer = request.getHeaders().getFirst(HttpHeaders.REFERER);
 
-        return redirectService.resolve(shortCode, ip, userAgent, referer)
-                .map(url -> ResponseEntity.status(HttpStatus.FOUND)
-                        .location(URI.create(url))
-                        .<Void>build());
-    }
+                return redirectService.resolve(shortCode, ip, userAgent, referer)
+                                .map(url -> ResponseEntity.status(HttpStatus.FOUND)
+                                                .location(URI.create(url))
+                                                .<Void>build());
+        }
 }
