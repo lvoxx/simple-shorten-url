@@ -2,42 +2,90 @@
 
     <!-- Console -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>
-                %d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger{36} - %msg%n
-            </pattern>
-        </encoder>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
     </appender>
 
     <!-- File rolling -->
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${DEV_HOME}/${APP_NAME}.log</file>
+    <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
 
-        <encoder>
-            <pattern>
-                %d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n
-            </pattern>
+        <!-- File log -->
+        <file>/logs/app.log</file>
+
+        <!-- JSON encoder -->
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+
+                <!-- Thời gian -->
+                <timestamp>
+                    <fieldName>@timestamp</fieldName>
+                    <pattern>yyyy-MM-dd'T'HH:mm:ss.SSSZ</pattern>
+                </timestamp>
+
+                <!-- Level -->
+                <logLevel>
+                    <fieldName>level</fieldName>
+                </logLevel>
+
+                <!-- Service name -->
+                <globalCustomFields>
+                    {"service":"${APP_NAME:-unknown-service}"}
+                </globalCustomFields>
+
+                <!-- Logger -->
+                <loggerName>
+                    <fieldName>logger</fieldName>
+                </loggerName>
+
+                <!-- Thread -->
+                <threadName>
+                    <fieldName>thread</fieldName>
+                </threadName>
+
+                <!-- Message -->
+                <message>
+                    <fieldName>message</fieldName>
+                </message>
+
+                <!-- Structured arguments (kv) -->
+                <arguments />
+
+                <!-- MDC (trace_id, user_id, etc) -->
+                <mdc />
+
+                <!-- Stacktrace -->
+                <stackTrace>
+                    <fieldName>stacktrace</fieldName>
+                </stackTrace>
+
+            </providers>
         </encoder>
 
+        <!-- Rolling -->
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>
-                ${DEV_HOME}/archived/${APP_NAME}-%d{yyyy-MM-dd}.%i.log
-            </fileNamePattern>
+            <fileNamePattern>/logs/archive/app-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
+
+    </appender>
+
+    <!-- ASYNC FILE -->
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>1024</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="FILE_JSON" />
     </appender>
 
     <!-- Logger -->
     <logger name="io.lvoxx.ssurl" level="INFO" additivity="false">
-        <appender-ref ref="FILE"/>
-        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="ASYNC_FILE" />
+        <appender-ref ref="STDOUT" />
     </logger>
 
     <root level="INFO">
-        <appender-ref ref="FILE"/>
-        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="ASYNC_FILE" />
+        <appender-ref ref="STDOUT" />
     </root>
 
 </included>
