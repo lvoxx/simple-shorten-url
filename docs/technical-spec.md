@@ -1,7 +1,7 @@
 # Technical Specification — URL Shortener System
 
 **Version:** 1.0.0  
-**Last Updated:** 2025-01-01  
+**Last Updated:** 2025-01-01
 
 ---
 
@@ -13,10 +13,10 @@ A high-performance URL shortener built as a modular monolith — three independe
 
 ### Services
 
-| Service | Port | Role |
-|---|---|---|
-| `api_service` | 8080 | URL creation, auth, user management (write path) |
-| `redirect_service` | 8081 | Short-code resolution, 302 redirects (read path) |
+| Service            | Port | Role                                                 |
+| ------------------ | ---- | ---------------------------------------------------- |
+| `api_service`      | 8080 | URL creation, auth, user management (write path)     |
+| `redirect_service` | 8081 | Short-code resolution, 302 redirects (read path)     |
 | `analytics_worker` | 8082 | Kafka consumer, batch analytics inserts (async path) |
 
 ### Architecture Diagram
@@ -94,10 +94,10 @@ sequenceDiagram
 
 Auto-increment `BIGSERIAL` ID → bytes → Base62 encode → short code.
 
-| ID | Encoded |
-|---|---|
-| 0 | `0` |
-| 1,000,000 | `4c92` |
+| ID                | Encoded  |
+| ----------------- | -------- |
+| 0                 | `0`      |
+| 1,000,000         | `4c92`   |
 | 3,521,614,606,208 | `zzzzzz` |
 
 **Library:** `io.seruco.encoding:base62` (alphabet: `0-9`, `a-z`, `A-Z`)
@@ -117,13 +117,13 @@ Auto-increment `BIGSERIAL` ID → bytes → Base62 encode → short code.
 
 ### Redis Key Schema
 
-| Key | Type | TTL |
-|---|---|---|
-| `short:{code}` | String (original URL) | 24h |
-| `rate_limit:ip:{ip}` | Counter | 60s |
-| `rate_limit:user:{id}` | Counter | 60s |
-| `bloom:urls` | Bloom filter | No TTL |
-| `blacklist:domain:{domain}` | String `"1"` | 10m |
+| Key                         | Type                  | TTL    |
+| --------------------------- | --------------------- | ------ |
+| `short:{code}`              | String (original URL) | 24h    |
+| `rate_limit:ip:{ip}`        | Counter               | 60s    |
+| `rate_limit:user:{id}`      | Counter               | 60s    |
+| `bloom:urls`                | Bloom filter          | No TTL |
+| `blacklist:domain:{domain}` | String `"1"`          | 10m    |
 
 ### Cache Invalidation
 
@@ -139,13 +139,13 @@ Auto-increment `BIGSERIAL` ID → bytes → Base62 encode → short code.
 
 ### Tables
 
-| Table | Key Features |
-|---|---|
-| `users` | BIGSERIAL PK, unique email/username, BCrypt password, role (USER/ADMIN) |
-| `urls` | BIGSERIAL PK, unique short_code, FK → users (SET NULL on delete), is_active, click_count, expire_at, audit fields |
-| `refresh_tokens` | BIGSERIAL PK, FK → users (CASCADE delete), token, expires_at, is_revoked |
-| `analytics` | Partitioned by RANGE(created_at) monthly, no FK to urls (performance) |
-| `domain_blacklist` | BIGSERIAL PK, unique domain, reason |
+| Table              | Key Features                                                                                                      |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `users`            | BIGSERIAL PK, unique email/username, BCrypt password, role (USER/ADMIN)                                           |
+| `urls`             | BIGSERIAL PK, unique short_code, FK → users (SET NULL on delete), is_active, click_count, expire_at, audit fields |
+| `refresh_tokens`   | BIGSERIAL PK, FK → users (CASCADE delete), token, expires_at, is_revoked                                          |
+| `analytics`        | Partitioned by RANGE(created_at) monthly, no FK to urls (performance)                                             |
+| `domain_blacklist` | BIGSERIAL PK, unique domain, reason                                                                               |
 
 ### Audit Entity Hierarchy
 
@@ -162,12 +162,12 @@ BaseCAtEntity (created_at)
 
 ### Kafka Topic: `analytics-events`
 
-| Property | Value |
-|---|---|
-| Partitions | 3 |
-| Replication | 1 (dev) |
-| Key | shortCode |
-| Value | Avro `AnalyticsEvent` |
+| Property    | Value                 |
+| ----------- | --------------------- |
+| Partitions  | 3                     |
+| Replication | 1 (dev)               |
+| Key         | shortCode             |
+| Value       | Avro `AnalyticsEvent` |
 
 ### Avro Schema (`common/src/main/avro/AnalyticsEvent.avsc`)
 
@@ -175,11 +175,11 @@ BaseCAtEntity (created_at)
 {
   "name": "AnalyticsEvent",
   "fields": [
-    {"name": "shortCode", "type": "string"},
-    {"name": "ip", "type": "string"},
-    {"name": "userAgent", "type": ["null", "string"], "default": null},
-    {"name": "referer", "type": ["null", "string"], "default": null},
-    {"name": "createdAt", "type": "long", "logicalType": "timestamp-millis"}
+    { "name": "shortCode", "type": "string" },
+    { "name": "ip", "type": "string" },
+    { "name": "userAgent", "type": ["null", "string"], "default": null },
+    { "name": "referer", "type": ["null", "string"], "default": null },
+    { "name": "createdAt", "type": "long", "logicalType": "timestamp-millis" }
   ]
 }
 ```
@@ -196,16 +196,16 @@ BaseCAtEntity (created_at)
 
 All business errors are communicated via typed exceptions extending `AppException` (in `common`):
 
-| Exception | HTTP Status | Message Key |
-|---|---|---|
-| `ShortCodeNotFoundException` | 404 | `error.shortcode.notfound` |
-| `UrlExpiredException` | 410 | `error.shortcode.expired` |
-| `UrlNotFoundException` | 404 | `error.url.notfound` |
-| `DomainBlacklistedException` | 400 | `error.domain.blacklisted` |
-| `RateLimitExceededException` | 429 | `error.ratelimit.exceeded` |
-| `UnauthorizedException` | 401 | `error.unauthorized` |
-| `UserNotFoundException` | 404 | `error.user.notfound` |
-| `UserAlreadyExistsException` | 409 | `error.user.alreadyexists` |
+| Exception                    | HTTP Status | Message Key                |
+| ---------------------------- | ----------- | -------------------------- |
+| `ShortCodeNotFoundException` | 404         | `error.shortcode.notfound` |
+| `UrlExpiredException`        | 410         | `error.shortcode.expired`  |
+| `UrlNotFoundException`       | 404         | `error.url.notfound`       |
+| `DomainBlacklistedException` | 400         | `error.domain.blacklisted` |
+| `RateLimitExceededException` | 429         | `error.ratelimit.exceeded` |
+| `UnauthorizedException`      | 401         | `error.unauthorized`       |
+| `UserNotFoundException`      | 404         | `error.user.notfound`      |
+| `UserAlreadyExistsException` | 409         | `error.user.alreadyexists` |
 
 Each service has a `GlobalExceptionHandler` (`@RestControllerAdvice`) that maps exceptions to `ProblemDetail` (RFC 9457) responses with i18n messages from `MessageSource`.
 
@@ -230,11 +230,11 @@ Each service has a `GlobalExceptionHandler` (`@RestControllerAdvice`) that maps 
 
 ## Testing Strategy
 
-| Layer | Framework | Coverage |
-|---|---|---|
-| Unit (service) | JUnit 5 + Mockito + StepVerifier | Core logic |
-| Repository | @DataR2dbcTest + Testcontainers (PostgreSQL + Redis) | DB interactions |
-| Controller | Plain Mockito (no @WebFluxTest — unavailable in Boot 4.0.6) | Request/response |
-| Integration | Testcontainers | Full flows |
+| Layer          | Framework                                                   | Coverage         |
+| -------------- | ----------------------------------------------------------- | ---------------- |
+| Unit (service) | JUnit 5 + Mockito + StepVerifier                            | Core logic       |
+| Repository     | @DataR2dbcTest + Testcontainers (PostgreSQL + Redis)        | DB interactions  |
+| Controller     | Plain Mockito (no @WebFluxTest — unavailable in Boot 4.0.6) | Request/response |
+| Integration    | Testcontainers                                              | Full flows       |
 
 Testcontainers support is provided by `test_starter` with reusable abstract classes (`AbstractPostgresContainer`, `AbstractRedisContainer`) and `NoCacheLoadConfig` for disabling cache in tests.

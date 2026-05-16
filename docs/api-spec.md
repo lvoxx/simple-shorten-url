@@ -2,7 +2,7 @@
 
 **Base URL:** `http://localhost:8080/api/v1`  
 **Content-Type:** `application/json`  
-**Authentication:** Bearer JWT (except public endpoints)  
+**Authentication:** Bearer JWT (except public endpoints)
 
 ---
 
@@ -13,6 +13,7 @@
 Register a new user.
 
 **Request:**
+
 ```json
 {
   "email": "user@example.com",
@@ -29,6 +30,7 @@ Register a new user.
 | `password` | Min 8 chars, at least one uppercase, one digit |
 
 **Response `201 Created`:**
+
 ```json
 {
   "id": 1,
@@ -47,6 +49,7 @@ Register a new user.
 Authenticate and receive tokens.
 
 **Request:**
+
 ```json
 {
   "email": "user@example.com",
@@ -55,6 +58,7 @@ Authenticate and receive tokens.
 ```
 
 **Response `200 OK`:**
+
 ```json
 {
   "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
@@ -65,6 +69,7 @@ Authenticate and receive tokens.
 ```
 
 **Response Headers:**
+
 ```
 Set-Cookie: refreshToken=<token>; HttpOnly; Path=/api/v1/auth; Max-Age=604800; SameSite=Strict
 ```
@@ -78,11 +83,13 @@ Set-Cookie: refreshToken=<token>; HttpOnly; Path=/api/v1/auth; Max-Age=604800; S
 Exchange refresh token for a new access token.
 
 **Request (cookie):**
+
 ```
 Cookie: refreshToken=<token>
 ```
 
 **Response `200 OK`:**
+
 ```json
 {
   "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
@@ -99,6 +106,7 @@ Cookie: refreshToken=<token>
 Revoke the current refresh token. Requires `Authorization: Bearer <token>`.
 
 **Request (cookie):**
+
 ```
 Cookie: refreshToken=<token>
 ```
@@ -114,6 +122,7 @@ Cookie: refreshToken=<token>
 Create a new short URL. **Public** (no auth required). Anonymous users receive 7-day TTL.
 
 **Request:**
+
 ```json
 {
   "originalUrl": "https://www.example.com/very/long/path",
@@ -130,6 +139,7 @@ Create a new short URL. **Public** (no auth required). Anonymous users receive 7
 | `expireAt` | Future timestamp, optional |
 
 **Response `201 Created`:**
+
 ```json
 {
   "shortCode": "4c92",
@@ -153,6 +163,7 @@ Create a new short URL. **Public** (no auth required). Anonymous users receive 7
 Get metadata for a specific short URL. Requires authentication (owner only).
 
 **Response `200 OK`:**
+
 ```json
 {
   "shortCode": "4c92",
@@ -182,6 +193,7 @@ List authenticated user's URLs with cursor-based pagination.
 | `size` | 20 | Items per page (max 100). |
 
 **Response `200 OK`:**
+
 ```json
 {
   "content": [
@@ -206,6 +218,7 @@ List authenticated user's URLs with cursor-based pagination.
 Update a short URL's metadata (title only). Requires authentication (owner only).
 
 **Request:**
+
 ```json
 {
   "title": "Updated Title"
@@ -213,6 +226,7 @@ Update a short URL's metadata (title only). Requires authentication (owner only)
 ```
 
 **Response `200 OK`:**
+
 ```json
 {
   "shortCode": "4c92",
@@ -240,6 +254,7 @@ Soft-delete (deactivate) a short URL. Sets `is_active = false` and evicts cache.
 Get current user profile.
 
 **Response `200 OK`:**
+
 ```json
 {
   "id": 1,
@@ -259,6 +274,7 @@ Get current user profile.
 Update current user's email.
 
 **Request:**
+
 ```json
 {
   "newEmail": "newemail@example.com"
@@ -330,9 +346,7 @@ Validation errors include additional `errors` property:
   "status": 400,
   "detail": "Validation failed",
   "instance": "/api/v1/urls",
-  "errors": [
-    "originalUrl: must be a valid URL"
-  ]
+  "errors": ["originalUrl: must be a valid URL"]
 }
 ```
 

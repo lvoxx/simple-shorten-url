@@ -73,6 +73,7 @@ docker build -f analytics_worker/Dockerfile -t ssurl-analytics .
 ```
 
 Dockerfiles use multi-stage builds:
+
 1. `eclipse-temurin:25-jre-noble` — extract Spring Boot layered JAR
 2. `gcr.io/distroless/java25-debian13` — runtime image (non-root user `nonroot`)
 
@@ -80,20 +81,20 @@ Dockerfiles use multi-stage builds:
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `DB_URL` | Yes | — | R2DBC PostgreSQL URL |
-| `DB_USERNAME` | Yes | — | Database user |
-| `DB_PASSWORD` | Yes | — | Database password |
-| `REDIS_HOST` | Yes | `localhost` | Redis host |
-| `REDIS_PORT` | No | `6379` | Redis port |
-| `REDIS_PASSWORD` | No | — | Redis password |
-| `KAFKA_BOOTSTRAP_SERVERS` | Yes | — | Kafka broker(s) |
-| `SCHEMA_REGISTRY_URL` | Yes | — | Confluent Schema Registry URL |
-| `JWT_SECRET` | Yes | — | Base64-encoded HMAC-SHA key |
-| `JWT_ACCESS_EXPIRY` | No | `900` | Access token TTL (seconds) |
-| `JWT_REFRESH_EXPIRY` | No | `604800` | Refresh token TTL (seconds) |
-| `SHORT_URL_BASE` | Yes | — | Base URL for short links |
+| Variable                  | Required | Default     | Description                   |
+| ------------------------- | -------- | ----------- | ----------------------------- |
+| `DB_URL`                  | Yes      | —           | R2DBC PostgreSQL URL          |
+| `DB_USERNAME`             | Yes      | —           | Database user                 |
+| `DB_PASSWORD`             | Yes      | —           | Database password             |
+| `REDIS_HOST`              | Yes      | `localhost` | Redis host                    |
+| `REDIS_PORT`              | No       | `6379`      | Redis port                    |
+| `REDIS_PASSWORD`          | No       | —           | Redis password                |
+| `KAFKA_BOOTSTRAP_SERVERS` | Yes      | —           | Kafka broker(s)               |
+| `SCHEMA_REGISTRY_URL`     | Yes      | —           | Confluent Schema Registry URL |
+| `JWT_SECRET`              | Yes      | —           | Base64-encoded HMAC-SHA key   |
+| `JWT_ACCESS_EXPIRY`       | No       | `900`       | Access token TTL (seconds)    |
+| `JWT_REFRESH_EXPIRY`      | No       | `604800`    | Refresh token TTL (seconds)   |
+| `SHORT_URL_BASE`          | Yes      | —           | Base URL for short links      |
 
 ---
 
@@ -108,6 +109,7 @@ Schema files in `database/schemas/`:
 5. `domain_blacklist.sql`
 
 Seed data in `database/init-db/`:
+
 - `domain_blacklist_001.sql` — 54 disposable email domains
 - `domain_blacklist_002.sql` — 3600+ additional blacklisted domains
 
@@ -120,6 +122,7 @@ Seed data in `database/init-db/`:
 ### PostgreSQL (Supabase)
 
 Managed PostgreSQL with free tier:
+
 - 500 MB storage
 - 5 users
 - Auto-backups
@@ -128,6 +131,7 @@ Managed PostgreSQL with free tier:
 ### Redis (Self-hosted on VPS)
 
 Single-node Redis 7 with AOF persistence:
+
 - Port 6379
 - Password: set via `REDIS_PASSWORD`
 - AOF enabled for durability
@@ -149,13 +153,13 @@ Push to main → Run tests → Build Docker images → Push to Docker Hub → SS
 
 ### Secrets Required
 
-| Secret | Description |
-|---|---|
-| `DOCKER_USERNAME` | Docker Hub username |
+| Secret            | Description               |
+| ----------------- | ------------------------- |
+| `DOCKER_USERNAME` | Docker Hub username       |
 | `DOCKER_PASSWORD` | Docker Hub password/token |
-| `VPS_HOST` | VPS IP address |
-| `VPS_USER` | SSH username |
-| `VPS_SSH_KEY` | SSH private key |
+| `VPS_HOST`        | VPS IP address            |
+| `VPS_USER`        | SSH username              |
+| `VPS_SSH_KEY`     | SSH private key           |
 
 ---
 
@@ -197,25 +201,25 @@ docker compose up -d
 
 ## Performance Targets
 
-| Metric | Target |
-|---|---|
-| Redirect (Cloudflare cache hit) | < 5 ms |
-| Redirect (Redis cache hit) | < 10 ms |
-| Redirect (DB fallback) | < 100 ms |
-| URL creation throughput | > 500 req/s |
-| Read throughput (single VPS) | > 1,000 req/s |
+| Metric                          | Target        |
+| ------------------------------- | ------------- |
+| Redirect (Cloudflare cache hit) | < 5 ms        |
+| Redirect (Redis cache hit)      | < 10 ms       |
+| Redirect (DB fallback)          | < 100 ms      |
+| URL creation throughput         | > 500 req/s   |
+| Read throughput (single VPS)    | > 1,000 req/s |
 
 ---
 
 ## Scaling
 
-| Component | Strategy |
-|---|---|
-| Redirect Service | Horizontal replicas behind NGINX |
-| API Service | Horizontal replicas behind NGINX |
-| Redis | Single node → Sentinel → Cluster |
-| PostgreSQL | Supabase upgrade (read replicas) |
-| Kafka | Aiven paid plan (more partitions, RF > 1) |
+| Component        | Strategy                                  |
+| ---------------- | ----------------------------------------- |
+| Redirect Service | Horizontal replicas behind NGINX          |
+| API Service      | Horizontal replicas behind NGINX          |
+| Redis            | Single node → Sentinel → Cluster          |
+| PostgreSQL       | Supabase upgrade (read replicas)          |
+| Kafka            | Aiven paid plan (more partitions, RF > 1) |
 
 ---
 

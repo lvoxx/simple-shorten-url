@@ -2,7 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2025-01-01  
-**Deciders:** Project Lead  
+**Deciders:** Project Lead
 
 ## Context
 
@@ -21,16 +21,19 @@ All services share the `common` module for models, DTOs, mappers, and exceptions
 ## Consequences
 
 **Positive:**
+
 - No microservice orchestration overhead (service discovery, inter-service HTTP calls)
 - Shared domain models prevent drift
 - Single deployment pipeline
 - Each service can scale independently if needed
 
 **Negative:**
+
 - Cannot independently upgrade shared dependencies across services
 - A shared model change requires rebuilding all services
 - Not suitable for teams that need independent deploy cadences
 
 **Rejected alternatives:**
+
 - True microservices: too much operational overhead for a solo project
 - Single monolithic JAR: cannot scale read/write paths independently
