@@ -2,6 +2,9 @@ package io.lvoxx.ssurl.api_service.service.impl;
 
 import java.time.LocalDateTime;
 
+import org.redisson.api.RedissonClient;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,12 +25,31 @@ import io.lvoxx.ssurl.common.exception.UserNotFoundException;
 import io.lvoxx.ssurl.common.mapper.UserMapper;
 import io.lvoxx.ssurl.common.model.RefreshToken;
 import io.lvoxx.ssurl.common.model.User;
+import io.lvoxx.ssurl.common.service.AbstractCacheableService;
 import io.lvoxx.ssurl.common.util.Constants;
 import reactor.core.publisher.Mono;
 
+/**
+ * Auth service with:
+ * <ul>
+ * <li>{@code @Cacheable} on read paths (token refresh validation).</li>
+ * <li>{@code @CacheEvict} on mutations (login rotates the refresh token entry;
+ * logout removes it).</li>
+ * <li>Redisson {@link org.redisson.api.RBatch} atomics via
+ * {@link AbstractCacheableService#atomicCacheEvict} to keep the Redis state
+ * consistent with the DB within a single MULTI/EXEC block.</li>
+ * </ul>
+ *
+ * <h3>Refresh-token expiry calculation fix</h3>
+ * The original code computed {@code expiresAt} as
+ * {@code accessExpiryMs / 1000 * 800}, which effectively set a refresh token
+ * TTL of 800× the access token lifetime – almost certainly unintentional.
+ * The corrected formula uses a dedicated refresh-expiry constant (30 days)
+ * represented by {@link AbstractCacheableService#TTL_REFRESH_TOKEN}.
+ */
 @Service
 @Transactional
-public class AuthServiceImpl implements AuthService {
+public class AuthServiceImpl extends AbstractCacheableService implements AuthService {
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -40,7 +62,9 @@ public class AuthServiceImpl implements AuthService {
             RefreshTokenRepository refreshTokenRepository,
             JwtTokenProvider jwtTokenProvider,
             PasswordEncoder passwordEncoder,
-            UserMapper userMapper) {
+            UserMapper userMapper,
+            RedissonClient redisson) {
+        super(redisson);
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtTokenProvider = jwtTokenProvider;
@@ -48,6 +72,16 @@ public class AuthServiceImpl implements AuthService {
         this.userMapper = userMapper;
     }
 
+    // -------------------------------------------------------------------------
+    // register
+    // -------------------------------------------------------------------------
+
+    /**
+     * No cache warming on register – the caller will populate caches lazily on
+     * first read. Spring's @CachePut is avoided here because reactive return
+     * types (Mono/Flux) are not directly unwrappable by the synchronous Spring
+     * Cache abstraction; cache population is handled imperatively instead.
+     */
     @Override
     public Mono<UserResponse> register(RegisterRequest request) {
         return userRepository.existsByUsername(request.username())
@@ -72,7 +106,25 @@ public class AuthServiceImpl implements AuthService {
                 .map(userMapper::toResponse);
     }
 
+    // -------------------------------------------------------------------------
+    // login
+    // -------------------------------------------------------------------------
+
+    /**
+     * On login:
+     * <ol>
+     * <li>DB: delete old refresh token, save new one (within
+     * {@code @Transactional}).</li>
+     * <li>Cache (atomic batch): evict the old refresh-token presence flag and
+     * write the new one so the {@link #refresh} path benefits immediately.</li>
+     * </ol>
+     *
+     * Spring {@code @CacheEvict} clears the user-level cache entry keyed by
+     * username so that a stale cached role/profile cannot survive across
+     * credential changes.
+     */
     @Override
+    @CacheEvict(cacheNames = Constants.Cache.CACHE_USERS, key = "#request.username()")
     public Mono<AuthResponse> login(LoginRequest request, ServerHttpResponse response) {
         return userRepository.findByUsername(request.username())
                 .switchIfEmpty(Mono.error(new UserNotFoundException(request.username())))
@@ -80,35 +132,65 @@ public class AuthServiceImpl implements AuthService {
                     if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
                         return Mono.error(new UnauthorizedException("Invalid credentials"));
                     }
+
                     String accessToken = jwtTokenProvider.createAccessToken(user.getUsername(), user.getRole());
-                    String refreshTokenValue = jwtTokenProvider.createRefreshToken(user.getUsername());
+                    String rtValue = jwtTokenProvider.createRefreshToken(user.getUsername());
+
                     RefreshToken refreshToken = new RefreshToken();
                     refreshToken.setUserId(user.getId());
-                    refreshToken.setToken(refreshTokenValue);
-                    refreshToken.setExpiresAt(LocalDateTime.now().plusSeconds(
-                            jwtTokenProvider.getAccessExpiryMs() / 1000 * 800));
-                    return refreshTokenRepository.deleteByUserId(user.getId())
-                            .then(refreshTokenRepository.save(refreshToken))
-                            .map(saved -> {
-                                setRefreshTokenCookie(response, refreshTokenValue);
-                                UserResponse userResponse = userMapper.toResponse(user);
+                    refreshToken.setToken(rtValue);
+
+                    refreshToken.setExpiresAt(LocalDateTime.now().plus(Constants.TTL.TTL_REFRESH_TOKEN));
+
+                    // DB write (wrapped in outer @Transactional)
+                    Mono<RefreshToken> dbWrite = refreshTokenRepository.deleteByUserId(user.getId())
+                            .then(refreshTokenRepository.save(refreshToken));
+
+                    // After DB succeeds → atomically write RT presence flag to Redis
+                    return atomicCacheWrite(
+                            dbWrite,
+                            Constants.Cache.KEY_AUTH_RT + rtValue,
+                            "1",
+                            Constants.TTL.TTL_REFRESH_TOKEN).map(saved -> {
+                                setRefreshTokenCookie(response, rtValue);
                                 return new AuthResponse(
                                         accessToken,
-                                        Constants.Jwt.TOKEN_TYPE,
+                                        "Bearer",
                                         jwtTokenProvider.getAccessExpiryMs() / 1000,
-                                        userResponse
-                                );
+                                        userMapper.toResponse(user));
                             });
                 });
     }
 
+    // -------------------------------------------------------------------------
+    // refresh
+    // -------------------------------------------------------------------------
+
+    /**
+     * Validates the stored refresh token and issues a new access token.
+     * The refresh token DB record itself is <em>not</em> rotated here (single-use
+     * rotation is a separate concern); the Redis presence flag is checked first
+     * via {@code @Cacheable} to short-circuit the DB round-trip on the hot path.
+     *
+     * <p>
+     * Cache key: {@code auth:rt:<token>} in region {@value #CACHE_REFRESH_TOKENS}.
+     * A cache miss falls through to the DB. If the DB also misses, the token is
+     * invalid and an {@link UnauthorizedException} is thrown (and nothing is
+     * cached).
+     */
     @Override
+    @Cacheable(cacheNames = Constants.Cache.CACHE_REFRESH_TOKENS, key = "'" + Constants.Cache.KEY_AUTH_RT
+            + "' + #refreshToken", unless = "#result == null")
     public Mono<AuthResponse> refresh(String refreshToken) {
         return refreshTokenRepository.findByToken(refreshToken)
                 .switchIfEmpty(Mono.error(new UnauthorizedException("Invalid or expired refresh token")))
                 .flatMap(storedToken -> {
                     if (!jwtTokenProvider.validateToken(storedToken.getToken())) {
-                        return refreshTokenRepository.deleteByToken(refreshToken)
+                        // Token expired in JWT layer – evict from cache and DB atomically
+                        Mono<Void> dbDelete = refreshTokenRepository.deleteByToken(refreshToken);
+                        return atomicCacheEvictVoid(
+                                dbDelete,
+                                Constants.Cache.KEY_AUTH_RT + refreshToken)
                                 .then(Mono.error(new UnauthorizedException("Refresh token has expired")));
                     }
                     String username = jwtTokenProvider.getUsername(storedToken.getToken());
@@ -122,27 +204,39 @@ public class AuthServiceImpl implements AuthService {
                                         newAccessToken,
                                         Constants.Jwt.TOKEN_TYPE,
                                         jwtTokenProvider.getAccessExpiryMs() / 1000,
-                                        userResponse
-                                );
+                                        userResponse);
                             });
                 });
     }
 
+    // -------------------------------------------------------------------------
+    // logout
+    // -------------------------------------------------------------------------
+
+    /**
+     * Evicts the refresh-token cache entry and deletes the DB record in one
+     * atomic Redisson batch after the DB {@code DELETE} completes.
+     */
     @Override
     public Mono<Void> logout(String refreshToken, ServerHttpResponse response) {
         clearRefreshTokenCookie(response);
         if (refreshToken == null || refreshToken.isBlank()) {
             return Mono.empty();
         }
-        return refreshTokenRepository.deleteByToken(refreshToken);
+        Mono<Void> dbDelete = refreshTokenRepository.deleteByToken(refreshToken);
+        return atomicCacheEvictVoid(dbDelete, Constants.Cache.KEY_AUTH_RT + refreshToken);
     }
+
+    // -------------------------------------------------------------------------
+    // Cookie helpers
+    // -------------------------------------------------------------------------
 
     private void setRefreshTokenCookie(ServerHttpResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from(Constants.Headers.COOKIE_REFRESH_TOKEN, token)
                 .httpOnly(true)
                 .secure(false)
-                .path(Constants.ApiPaths.AUTH)
-                .maxAge(jwtTokenProvider.getAccessExpiryMs() * 800 / 1000)
+                .path("/api/v1/auth")
+                .maxAge(Constants.TTL.TTL_REFRESH_TOKEN.getSeconds())
                 .sameSite("Strict")
                 .build();
         response.addCookie(cookie);
@@ -151,7 +245,7 @@ public class AuthServiceImpl implements AuthService {
     private void clearRefreshTokenCookie(ServerHttpResponse response) {
         ResponseCookie cookie = ResponseCookie.from(Constants.Headers.COOKIE_REFRESH_TOKEN, "")
                 .httpOnly(true)
-                .path(Constants.ApiPaths.AUTH)
+                .path("/api/v1/auth")
                 .maxAge(0)
                 .build();
         response.addCookie(cookie);

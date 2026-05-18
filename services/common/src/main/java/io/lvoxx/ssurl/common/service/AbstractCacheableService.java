@@ -7,7 +7,6 @@ import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
 /**
@@ -42,12 +41,15 @@ import reactor.core.publisher.Mono;
  * the abstraction layer and call {@link UrlCacheOperations} directly for
  * maximum throughput.
  */
-@RequiredArgsConstructor
 public abstract class AbstractCacheableService {
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
     protected final RedissonClient redisson;
+
+    public AbstractCacheableService(RedissonClient redisson) {
+        this.redisson = redisson;
+    }
 
     // -------------------------------------------------------------------------
     // Atomic cache helpers
