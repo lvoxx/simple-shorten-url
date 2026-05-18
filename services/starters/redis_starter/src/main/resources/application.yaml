@@ -25,3 +25,5 @@ spring:
       # --- SSL (nếu dùng cloud redis) ---
       ssl:
         enabled: ${REDIS_SSL_ENABLED:false}
+    redisson:
+      file: classpath:redisson.yaml
