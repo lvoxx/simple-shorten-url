@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import io.lvoxx.ssurl.api_service.repository.UserRepository;
 import io.lvoxx.ssurl.api_service.service.UserService;
 import io.lvoxx.ssurl.common.dto.response.UserResponse;
+import io.lvoxx.ssurl.common.util.Constants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -21,7 +22,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping(Constants.ApiPaths.USERS)
 @Tag(name = "Users", description = "User management")
 public class UserController {
 

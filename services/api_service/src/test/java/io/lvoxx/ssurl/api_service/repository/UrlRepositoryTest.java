@@ -15,6 +15,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import io.lvoxx.ssurl.common.model.Url;
 import io.lvoxx.ssurl.common.model.User;
+import io.lvoxx.ssurl.common.util.Constants;
 import io.lvoxx.ssurl.test_starter.AbstractPostgresContainer;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -58,7 +59,7 @@ class UrlRepositoryTest extends AbstractPostgresContainer {
                     assertThat(url.getClickCount()).isZero();
                     assertThat(url.getCreatedAt()).isNotNull();
                     assertThat(url.getUpdatedAt()).isNotNull();
-                    assertThat(url.getCreatedBy()).isEqualTo("Annonymous");
+                    assertThat(url.getCreatedBy()).isEqualTo(Constants.Defaults.CREATED_BY);
                 })
                 .expectComplete()
                 .verify(Duration.ofSeconds(10));

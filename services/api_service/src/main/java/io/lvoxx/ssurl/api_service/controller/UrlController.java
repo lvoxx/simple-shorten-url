@@ -6,6 +6,7 @@ import io.lvoxx.ssurl.common.dto.request.CreateUrlRequest;
 import io.lvoxx.ssurl.common.dto.request.UpdateUrlRequest;
 import io.lvoxx.ssurl.common.dto.response.CursorPage;
 import io.lvoxx.ssurl.common.dto.response.UrlResponse;
+import io.lvoxx.ssurl.common.util.Constants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -15,20 +16,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping("/api/v1/urls")
+@RequestMapping(Constants.ApiPaths.URLS)
 @Tag(name = "URLs", description = "Short URL management")
 public class UrlController {
 
@@ -52,7 +46,7 @@ public class UrlController {
                                 .map(ctx -> ctx.getAuthentication().getName())
                                 .flatMap(userRepository::findByUsername)
                                 .flatMap(user -> urlService.createUrl(request, user.getId(), user.getUsername()))
-                                .switchIfEmpty(urlService.createUrl(request, null, "anonymous"))
+                                .switchIfEmpty(urlService.createUrl(request, null, Constants.Defaults.ANONYMOUS_USER))
                                 .map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response));
         }
 

@@ -47,6 +47,6 @@ public final class LogIds {
     public static final String SYS_CONFIG_LOADED = "SYS-004";
 
     public static Marker marker(String eventId) {
-        return Markers.append("eventId", eventId);
+        return Markers.append(Constants.LOG_MARKER_EVENT_ID, eventId);
     }
 }

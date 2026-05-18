@@ -1,5 +1,6 @@
 package io.lvoxx.ssurl.common.model.audit;
 
+import io.lvoxx.ssurl.common.util.Constants;
 import org.springframework.data.relational.core.mapping.Column;
 
 import lombok.Builder;
@@ -13,7 +14,7 @@ import lombok.experimental.SuperBuilder;
 @Getter
 @Setter
 public abstract class BaseCAtCByEntity extends BaseCAtEntity {
-    @Column("created_by")
+    @Column(Constants.Columns.CREATED_BY)
     @Builder.Default
-    private String createdBy = "Annonymous";
+    private String createdBy = Constants.Defaults.CREATED_BY;
 }

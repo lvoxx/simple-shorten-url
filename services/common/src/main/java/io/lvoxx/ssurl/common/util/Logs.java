@@ -24,15 +24,16 @@ public final class Logs {
     }
 
     public static Marker marker(String key, Object value) {
-        return Markers.append(key, value); // ok
+        return Markers.append(key, value);
     }
 
     public static Marker markerEntries(Map<String, ?> map) {
-        return Markers.appendEntries(map); // ok
+        return Markers.appendEntries(map);
     }
 
     public static Marker event(String eventId, String eventName) {
-        return Markers.append("eventId", eventId).and(Markers.append("event", eventName));
+        return Markers.append(Constants.LOG_MARKER_EVENT_ID, eventId)
+                .and(Markers.append(Constants.LOG_MARKER_EVENT, eventName));
     }
 
     public static void info(Logger log, String format, Object... args) {

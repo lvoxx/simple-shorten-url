@@ -23,6 +23,7 @@ import io.lvoxx.ssurl.common.dto.response.AuthResponse;
 import io.lvoxx.ssurl.common.dto.response.UserResponse;
 import io.lvoxx.ssurl.common.exception.UnauthorizedException;
 import io.lvoxx.ssurl.common.exception.UserAlreadyExistsException;
+import io.lvoxx.ssurl.common.util.Constants;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -36,7 +37,7 @@ class AuthControllerTest {
     private static final UserResponse USER_RESPONSE = new UserResponse(
             1L, "alice", "alice@example.com", "USER", true, LocalDateTime.now());
     private static final AuthResponse AUTH_RESPONSE = new AuthResponse(
-            "access-token", "Bearer", 900L, USER_RESPONSE);
+            "access-token", Constants.Jwt.TOKEN_TYPE, 900L, USER_RESPONSE);
 
     @BeforeEach
     void setUp() {
@@ -128,7 +129,7 @@ class AuthControllerTest {
         @DisplayName("falls back to X-Refresh-Token header when cookie is absent")
         void refresh_withHeader_fallback() {
             var headers = new org.springframework.http.HttpHeaders();
-            headers.add("X-Refresh-Token", "refresh-token-from-header");
+            headers.add(Constants.Headers.X_REFRESH_TOKEN, "refresh-token-from-header");
             ServerHttpRequest request = mock(ServerHttpRequest.class);
             when(request.getHeaders()).thenReturn(headers);
             when(authService.refresh("refresh-token-from-header")).thenReturn(Mono.just(AUTH_RESPONSE));

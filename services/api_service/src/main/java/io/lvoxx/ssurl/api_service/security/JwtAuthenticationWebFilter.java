@@ -1,5 +1,6 @@
 package io.lvoxx.ssurl.api_service.security;
 
+import io.lvoxx.ssurl.common.util.Constants;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -29,7 +30,7 @@ public class JwtAuthenticationWebFilter implements WebFilter {
         if (token != null && jwtTokenProvider.validateToken(token)) {
             String username = jwtTokenProvider.getUsername(token);
             String role = jwtTokenProvider.getRole(token);
-            List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+            List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(Constants.Jwt.ROLE_PREFIX + role));
             UsernamePasswordAuthenticationToken auth =
                     new UsernamePasswordAuthenticationToken(username, null, authorities);
             return chain.filter(exchange)
@@ -40,7 +41,7 @@ public class JwtAuthenticationWebFilter implements WebFilter {
 
     private String resolveToken(ServerHttpRequest request) {
         String bearer = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (bearer != null && bearer.startsWith("Bearer ")) {
+        if (bearer != null && bearer.startsWith(Constants.Headers.AUTHORIZATION_PREFIX)) {
             return bearer.substring(7);
         }
         return null;

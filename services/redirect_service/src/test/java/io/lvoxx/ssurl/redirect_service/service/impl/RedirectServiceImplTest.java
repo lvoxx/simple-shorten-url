@@ -3,6 +3,7 @@ package io.lvoxx.ssurl.redirect_service.service.impl;
 import io.lvoxx.ssurl.avro.AnalyticsEvent;
 import io.lvoxx.ssurl.common.exception.ShortCodeNotFoundException;
 import io.lvoxx.ssurl.common.exception.UrlExpiredException;
+import io.lvoxx.ssurl.common.util.Constants;
 import io.lvoxx.ssurl.redirect_service.cache.UrlCacheService;
 import io.lvoxx.ssurl.redirect_service.repository.UrlRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -118,7 +119,7 @@ class RedirectServiceImplTest {
                     .expectNextCount(1)
                     .verifyComplete();
 
-            verify(kafkaTemplate).send(eq("analytics-events"), eq("abc123"), eventCaptor.capture());
+            verify(kafkaTemplate).send(eq(Constants.Kafka.TOPIC_ANALYTICS_EVENTS), eq("abc123"), eventCaptor.capture());
             AnalyticsEvent event = eventCaptor.getValue();
             assertThat(event.getShortCode().toString()).isEqualTo("abc123");
             assertThat(event.getIp().toString()).isEqualTo("1.2.3.4");
@@ -139,7 +140,7 @@ class RedirectServiceImplTest {
                     .expectNextCount(1)
                     .verifyComplete();
 
-            verify(kafkaTemplate).send(eq("analytics-events"), eq("abc123"), eventCaptor.capture());
+            verify(kafkaTemplate).send(eq(Constants.Kafka.TOPIC_ANALYTICS_EVENTS), eq("abc123"), eventCaptor.capture());
             AnalyticsEvent event = eventCaptor.getValue();
             assertThat(event.getUserAgent()).isNull();
             assertThat(event.getReferer()).isNull();

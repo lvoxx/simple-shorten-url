@@ -13,6 +13,8 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.RedisSerializer;
 
+import io.lvoxx.ssurl.common.util.Constants;
+
 import java.time.Duration;
 
 @AutoConfiguration
@@ -20,14 +22,11 @@ import java.time.Duration;
 @ConditionalOnClass(RedissonClient.class)
 public class RedisAutoConfiguration {
 
-    private static final int BLOOM_FILTER_CAPACITY = 10_000_000;
-    private static final double BLOOM_FILTER_FALSE_POSITIVE_RATE = 0.01;
-
     @Bean
-    @ConditionalOnMissingBean(name = "urlBloomFilter")
+    @ConditionalOnMissingBean(name = Constants.Beans.URL_BLOOM_FILTER)
     public RBloomFilter<String> urlBloomFilter(RedissonClient redissonClient) {
-        RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter("bloom:urls");
-        bloomFilter.tryInit(BLOOM_FILTER_CAPACITY, BLOOM_FILTER_FALSE_POSITIVE_RATE);
+        RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter(Constants.Cache.BLOOM_FILTER);
+        bloomFilter.tryInit(Constants.Cache.BLOOM_CAPACITY, Constants.Cache.BLOOM_FPR);
         return bloomFilter;
     }
 
@@ -35,13 +34,13 @@ public class RedisAutoConfiguration {
     @ConditionalOnMissingBean
     public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
         RedisCacheConfiguration shortUrlConfig = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofHours(24))
-                .computePrefixWith(cacheName -> "short:")
+                .entryTtl(Duration.ofHours(Constants.Cache.TTL_HOURS))
+                .computePrefixWith(cacheName -> Constants.Cache.KEY_PREFIX_SHORT)
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
                         .fromSerializer(RedisSerializer.string()));
 
         return RedisCacheManager.builder(connectionFactory)
-                .withCacheConfiguration("short-urls", shortUrlConfig)
+                .withCacheConfiguration(Constants.Cache.SHORT_URLS, shortUrlConfig)
                 .build();
     }
 }

@@ -2,6 +2,7 @@ package io.lvoxx.ssurl.common.model.audit;
 
 import java.time.LocalDateTime;
 
+import io.lvoxx.ssurl.common.util.Constants;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.relational.core.mapping.Column;
 
@@ -17,7 +18,7 @@ import lombok.experimental.SuperBuilder;
 @Setter
 public abstract class BaseCAtEntity {
     @CreatedDate
-    @Column("created_at")
+    @Column(Constants.Columns.CREATED_AT)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }

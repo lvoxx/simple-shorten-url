@@ -5,6 +5,7 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import io.lvoxx.ssurl.common.util.Constants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -30,8 +31,8 @@ public class JwtTokenProvider {
     public String createAccessToken(String username, String role) {
         return Jwts.builder()
                 .subject(username)
-                .claim("role", role)
-                .claim("type", "access")
+                .claim(Constants.Jwt.CLAIM_ROLE, role)
+                .claim(Constants.Jwt.CLAIM_TYPE, Constants.Jwt.TYPE_ACCESS)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + accessExpiryMs))
                 .signWith(secretKey)
@@ -41,7 +42,7 @@ public class JwtTokenProvider {
     public String createRefreshToken(String username) {
         return Jwts.builder()
                 .subject(username)
-                .claim("type", "refresh")
+                .claim(Constants.Jwt.CLAIM_TYPE, Constants.Jwt.TYPE_REFRESH)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + refreshExpiryMs))
                 .signWith(secretKey)
@@ -70,7 +71,7 @@ public class JwtTokenProvider {
     }
 
     public String getRole(String token) {
-        return (String) parseToken(token).get("role");
+        return (String) parseToken(token).get(Constants.Jwt.CLAIM_ROLE);
     }
 
     public long getAccessExpiryMs() {

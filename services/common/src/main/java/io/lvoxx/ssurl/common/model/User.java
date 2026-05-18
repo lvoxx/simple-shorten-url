@@ -5,6 +5,7 @@ import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import io.lvoxx.ssurl.common.model.audit.BaseCAtUAtEntity;
+import io.lvoxx.ssurl.common.util.Constants;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,7 +18,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-@Table("users")
+@Table(Constants.Tables.USERS)
 public class User extends BaseCAtUAtEntity {
 
     @Id
@@ -27,13 +28,13 @@ public class User extends BaseCAtUAtEntity {
 
     private String email;
 
-    @Column("password_hash")
+    @Column(Constants.Columns.PASSWORD_HASH)
     private String passwordHash;
 
     @Builder.Default
-    private String role = "USER";
+    private String role = Constants.Defaults.ROLE;
 
-    @Column("is_active")
+    @Column(Constants.Columns.IS_ACTIVE)
     @Builder.Default
     private boolean isActive = true;
 

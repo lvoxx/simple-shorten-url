@@ -2,6 +2,7 @@ package io.lvoxx.ssurl.redirect_service.controller;
 
 import io.lvoxx.ssurl.common.exception.ShortCodeNotFoundException;
 import io.lvoxx.ssurl.common.exception.UrlExpiredException;
+import io.lvoxx.ssurl.common.util.Constants;
 import io.lvoxx.ssurl.redirect_service.service.RedirectService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -59,7 +60,7 @@ class RedirectControllerTest {
         @DisplayName("extracts IP from X-Forwarded-For header")
         void redirect_usesXForwardedFor() {
             var headers = new org.springframework.http.HttpHeaders();
-            headers.add("X-Forwarded-For", "203.0.113.5");
+            headers.add(Constants.Headers.X_FORWARDED_FOR, "203.0.113.5");
             ServerHttpRequest request = mock(ServerHttpRequest.class);
             when(request.getHeaders()).thenReturn(headers);
             when(request.getRemoteAddress()).thenReturn(new InetSocketAddress("127.0.0.1", 80));

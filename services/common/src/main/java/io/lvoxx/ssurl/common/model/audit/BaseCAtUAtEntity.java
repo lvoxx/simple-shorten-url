@@ -1,5 +1,7 @@
 package io.lvoxx.ssurl.common.model.audit;
 
+import io.lvoxx.ssurl.common.util.Constants;
+
 import java.time.LocalDateTime;
 
 import org.springframework.data.annotation.LastModifiedDate;
@@ -16,7 +18,7 @@ import lombok.experimental.SuperBuilder;
 @Getter
 @Setter
 public abstract class BaseCAtUAtEntity extends BaseCAtEntity {
-    @Column("updated_at")
+    @Column(Constants.Columns.UPDATED_AT)
     @Builder.Default
     @LastModifiedDate
     private LocalDateTime updatedAt = LocalDateTime.now();

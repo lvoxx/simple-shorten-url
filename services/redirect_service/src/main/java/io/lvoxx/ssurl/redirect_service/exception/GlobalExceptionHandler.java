@@ -3,6 +3,7 @@ package io.lvoxx.ssurl.redirect_service.exception;
 import io.lvoxx.ssurl.common.exception.AppException;
 import io.lvoxx.ssurl.common.exception.ShortCodeNotFoundException;
 import io.lvoxx.ssurl.common.exception.UrlExpiredException;
+import io.lvoxx.ssurl.common.util.Constants;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -23,14 +24,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ShortCodeNotFoundException.class)
     public ProblemDetail handleNotFound(ShortCodeNotFoundException ex, Locale locale) {
         ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-        pd.setDetail(resolveMessage("error.shortcode.notfound", ex, locale));
+        pd.setDetail(resolveMessage(Constants.Messages.SHORTCODE_NOT_FOUND, ex, locale));
         return pd;
     }
 
     @ExceptionHandler(UrlExpiredException.class)
     public ProblemDetail handleExpired(UrlExpiredException ex, Locale locale) {
         ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.GONE);
-        pd.setDetail(resolveMessage("error.shortcode.expired", ex, locale));
+        pd.setDetail(resolveMessage(Constants.Messages.SHORTCODE_EXPIRED, ex, locale));
         return pd;
     }
 

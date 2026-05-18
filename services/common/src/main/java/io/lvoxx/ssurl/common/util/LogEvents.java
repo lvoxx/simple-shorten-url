@@ -47,6 +47,6 @@ public final class LogEvents {
     public static final String SYS_CONFIG_LOADED = "Configuration loaded";
 
     public static Marker marker(String eventName) {
-        return Markers.append("event", eventName);
+        return Markers.append(Constants.LOG_MARKER_EVENT, eventName);
     }
 }

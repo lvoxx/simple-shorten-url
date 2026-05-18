@@ -5,6 +5,7 @@ import io.lvoxx.ssurl.common.dto.request.LoginRequest;
 import io.lvoxx.ssurl.common.dto.request.RegisterRequest;
 import io.lvoxx.ssurl.common.dto.response.AuthResponse;
 import io.lvoxx.ssurl.common.dto.response.UserResponse;
+import io.lvoxx.ssurl.common.util.Constants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -24,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping(Constants.ApiPaths.AUTH)
 @Tag(name = "Auth", description = "Authentication endpoints")
 public class AuthController {
 
@@ -64,11 +65,11 @@ public class AuthController {
         @ApiResponse(responseCode = "500", description = "Internal server error")
         @PostMapping("/refresh")
         public Mono<ResponseEntity<AuthResponse>> refresh(
-                        @Parameter(description = "Refresh token sent as an HTTP-only cookie") @CookieValue(name = "refreshToken", required = false) String refreshTokenFromCookie,
+                        @Parameter(description = "Refresh token sent as an HTTP-only cookie") @CookieValue(name = Constants.Headers.COOKIE_REFRESH_TOKEN, required = false) String refreshTokenFromCookie,
                         ServerHttpRequest request) {
                 String refreshToken = refreshTokenFromCookie;
                 if (refreshToken == null) {
-                        String authHeader = request.getHeaders().getFirst("X-Refresh-Token");
+                        String authHeader = request.getHeaders().getFirst(Constants.Headers.X_REFRESH_TOKEN);
                         refreshToken = authHeader;
                 }
                 final String token = refreshToken;
@@ -81,7 +82,7 @@ public class AuthController {
         @ApiResponse(responseCode = "500", description = "Internal server error")
         @PostMapping("/logout")
         public Mono<ResponseEntity<?>> logout(
-                        @Parameter(description = "Refresh token sent as an HTTP-only cookie") @CookieValue(name = "refreshToken", required = false) String refreshToken,
+                        @Parameter(description = "Refresh token sent as an HTTP-only cookie") @CookieValue(name = Constants.Headers.COOKIE_REFRESH_TOKEN, required = false) String refreshToken,
                         ServerHttpResponse response) {
                 return authService.logout(refreshToken, response)
                                 .thenReturn(ResponseEntity.noContent().build());

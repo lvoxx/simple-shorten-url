@@ -2,6 +2,7 @@ package io.lvoxx.ssurl.redirect_service.service.impl;
 
 import io.lvoxx.ssurl.avro.AnalyticsEvent;
 import io.lvoxx.ssurl.common.exception.ShortCodeNotFoundException;
+import io.lvoxx.ssurl.common.util.Constants;
 import io.lvoxx.ssurl.redirect_service.cache.UrlCacheService;
 import io.lvoxx.ssurl.redirect_service.repository.UrlRepository;
 import io.lvoxx.ssurl.redirect_service.service.RedirectService;
@@ -54,7 +55,7 @@ public class RedirectServiceImpl implements RedirectService {
                 .setReferer(referer)
                 .setCreatedAt(Instant.now())
                 .build();
-        kafkaTemplate.send("analytics-events", shortCode, event);
+        kafkaTemplate.send(Constants.Kafka.TOPIC_ANALYTICS_EVENTS, shortCode, event);
         urlRepository.incrementClickCount(shortCode).subscribe();
     }
 }

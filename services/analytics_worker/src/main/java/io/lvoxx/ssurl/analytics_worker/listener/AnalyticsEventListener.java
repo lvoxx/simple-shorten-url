@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import io.lvoxx.ssurl.analytics_worker.service.AnalyticsService;
 import io.lvoxx.ssurl.avro.AnalyticsEvent;
+import io.lvoxx.ssurl.common.util.Constants;
 import io.lvoxx.ssurl.common.model.Analytics;
 
 @Component
@@ -30,9 +31,9 @@ public class AnalyticsEventListener {
     }
 
     @KafkaListener(
-            topics = "analytics-events",
+            topics = Constants.Kafka.TOPIC_ANALYTICS_EVENTS,
             groupId = "${spring.kafka.consumer.group-id}",
-            containerFactory = "kafkaListenerContainerFactory"
+            containerFactory = Constants.Beans.KAFKA_LISTENER_CONTAINER_FACTORY
     )
     public void listen(List<ConsumerRecord<String, AnalyticsEvent>> records) {
         if (records.isEmpty()) return;

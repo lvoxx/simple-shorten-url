@@ -7,6 +7,7 @@ import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
 import io.lvoxx.ssurl.common.model.audit.BaseCAtEntity;
+import io.lvoxx.ssurl.common.util.Constants;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -18,18 +19,18 @@ import lombok.experimental.SuperBuilder;
 @EqualsAndHashCode(callSuper = false)
 @NoArgsConstructor
 @AllArgsConstructor
-@Table("refresh_tokens")
+@Table(Constants.Tables.REFRESH_TOKENS)
 public class RefreshToken extends BaseCAtEntity {
 
     @Id
     private Long id;
 
-    @Column("user_id")
+    @Column(Constants.Columns.USER_ID)
     private Long userId;
 
     private String token;
 
-    @Column("expires_at")
+    @Column(Constants.Columns.EXPIRES_AT)
     private LocalDateTime expiresAt;
 
 }

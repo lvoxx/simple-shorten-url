@@ -18,6 +18,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>io.lvoxx.ssurl</groupId>
+            <artifactId>common</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
             <version>${springdoc-openapi.version}</version>

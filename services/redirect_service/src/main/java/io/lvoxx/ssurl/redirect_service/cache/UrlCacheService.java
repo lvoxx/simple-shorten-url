@@ -2,6 +2,7 @@ package io.lvoxx.ssurl.redirect_service.cache;
 
 import io.lvoxx.ssurl.common.exception.ShortCodeNotFoundException;
 import io.lvoxx.ssurl.common.exception.UrlExpiredException;
+import io.lvoxx.ssurl.common.util.Constants;
 import io.lvoxx.ssurl.redirect_service.repository.UrlRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,7 @@ public class UrlCacheService {
         this.urlRepository = urlRepository;
     }
 
-    @Cacheable(cacheNames = "short-urls", key = "#shortCode")
+    @Cacheable(cacheNames = Constants.Cache.SHORT_URLS, key = "#shortCode")
     public Mono<String> resolveOriginalUrl(String shortCode) {
         return urlRepository.findByShortCodeAndIsActive(shortCode, true)
                 .switchIfEmpty(Mono.error(new ShortCodeNotFoundException(shortCode)))

@@ -23,6 +23,7 @@ import io.lvoxx.ssurl.common.exception.UnauthorizedException;
 import io.lvoxx.ssurl.common.exception.UrlNotFoundException;
 import io.lvoxx.ssurl.common.mapper.UrlMapper;
 import io.lvoxx.ssurl.common.model.Url;
+import io.lvoxx.ssurl.common.util.Constants;
 import io.lvoxx.ssurl.common.util.NumberToBytes;
 import io.seruco.encoding.base62.Base62;
 import reactor.core.publisher.Mono;
@@ -30,8 +31,6 @@ import reactor.core.publisher.Mono;
 @Service
 @Transactional
 public class UrlServiceImpl implements UrlService {
-
-    private static final int ANONYMOUS_EXPIRY_DAYS = 7;
 
     private final UrlRepository urlRepository;
     private final DomainBlacklistRepository domainBlacklistRepository;
@@ -72,7 +71,7 @@ public class UrlServiceImpl implements UrlService {
                     url.setUpdatedBy(createdBy);
                     // Anonymous users get a 7-day expiry unless one was explicitly provided
                     if (userId == null && url.getExpireAt() == null) {
-                        url.setExpireAt(LocalDateTime.now().plusDays(ANONYMOUS_EXPIRY_DAYS));
+                        url.setExpireAt(LocalDateTime.now().plusDays(Constants.Business.ANONYMOUS_EXPIRY_DAYS));
                     }
                     return urlRepository.save(url);
                 })
@@ -101,7 +100,7 @@ public class UrlServiceImpl implements UrlService {
     @Override
     @Transactional(readOnly = true)
     public Mono<CursorPage<UrlResponse>> listByUser(Long userId, Long cursor, int size) {
-        int safeSize = Math.min(size, 100);
+        int safeSize = Math.min(size, Constants.Business.MAX_PAGE_SIZE);
         return (cursor == null
                 ? urlRepository.findTopByUserIdOrderByIdDesc(userId, safeSize)
                 : urlRepository.findByUserIdAndIdLessThanOrderByIdDesc(userId, cursor, safeSize))
@@ -171,8 +170,8 @@ public class UrlServiceImpl implements UrlService {
         try {
             URI uri = URI.create(url);
             String host = uri.getHost();
-            if (host != null && host.startsWith("www.")) {
-                return host.substring(4);
+            if (host != null && host.startsWith(Constants.Patterns.WWW_PREFIX)) {
+                return host.substring(Constants.Patterns.WWW_PREFIX.length());
             }
             return host != null ? host : url;
         } catch (IllegalArgumentException e) {

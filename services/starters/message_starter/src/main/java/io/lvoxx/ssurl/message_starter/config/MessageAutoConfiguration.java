@@ -1,5 +1,6 @@
 package io.lvoxx.ssurl.message_starter.config;
 
+import io.lvoxx.ssurl.common.util.Constants;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.MessageSource;
@@ -13,8 +14,8 @@ public class MessageAutoConfiguration {
     @ConditionalOnMissingBean
     public MessageSource messageSource() {
         ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
-        messageSource.setBasenames("messages/errors", "messages/common");
-        messageSource.setDefaultEncoding("UTF-8");
+        messageSource.setBasenames(Constants.Messages.BUNDLE_ERRORS, Constants.Messages.BUNDLE_COMMON);
+        messageSource.setDefaultEncoding(Constants.Messages.ENCODING);
         messageSource.setUseCodeAsDefaultMessage(true);
         return messageSource;
     }

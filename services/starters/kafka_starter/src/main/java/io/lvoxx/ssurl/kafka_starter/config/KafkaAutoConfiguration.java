@@ -1,5 +1,7 @@
 package io.lvoxx.ssurl.kafka_starter.config;
 
+import io.lvoxx.ssurl.common.util.Constants;
+
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -12,8 +14,10 @@ import org.springframework.kafka.core.KafkaAdmin;
 public class KafkaAutoConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean(name = "analyticsEventsTopic")
+    @ConditionalOnMissingBean(name = Constants.Beans.ANALYTICS_EVENTS_TOPIC)
     public NewTopic analyticsEventsTopic() {
-        return new NewTopic("analytics-events", 3, (short) 1);
+        return new NewTopic(Constants.Kafka.TOPIC_ANALYTICS_EVENTS,
+                Constants.Kafka.PARTITIONS,
+                Constants.Kafka.REPLICATION);
     }
 }

@@ -22,13 +22,12 @@ import io.lvoxx.ssurl.common.exception.UserNotFoundException;
 import io.lvoxx.ssurl.common.mapper.UserMapper;
 import io.lvoxx.ssurl.common.model.RefreshToken;
 import io.lvoxx.ssurl.common.model.User;
+import io.lvoxx.ssurl.common.util.Constants;
 import reactor.core.publisher.Mono;
 
 @Service
 @Transactional
 public class AuthServiceImpl implements AuthService {
-
-    private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -66,7 +65,7 @@ public class AuthServiceImpl implements AuthService {
                     user.setUsername(request.username());
                     user.setEmail(request.email());
                     user.setPasswordHash(passwordEncoder.encode(request.password()));
-                    user.setRole("USER");
+                    user.setRole(Constants.Defaults.ROLE);
                     user.setActive(true);
                     return userRepository.save(user);
                 })
@@ -95,7 +94,7 @@ public class AuthServiceImpl implements AuthService {
                                 UserResponse userResponse = userMapper.toResponse(user);
                                 return new AuthResponse(
                                         accessToken,
-                                        "Bearer",
+                                        Constants.Jwt.TOKEN_TYPE,
                                         jwtTokenProvider.getAccessExpiryMs() / 1000,
                                         userResponse
                                 );
@@ -121,7 +120,7 @@ public class AuthServiceImpl implements AuthService {
                                 UserResponse userResponse = userMapper.toResponse(user);
                                 return new AuthResponse(
                                         newAccessToken,
-                                        "Bearer",
+                                        Constants.Jwt.TOKEN_TYPE,
                                         jwtTokenProvider.getAccessExpiryMs() / 1000,
                                         userResponse
                                 );
@@ -139,10 +138,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void setRefreshTokenCookie(ServerHttpResponse response, String token) {
-        ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, token)
+        ResponseCookie cookie = ResponseCookie.from(Constants.Headers.COOKIE_REFRESH_TOKEN, token)
                 .httpOnly(true)
                 .secure(false)
-                .path("/api/v1/auth")
+                .path(Constants.ApiPaths.AUTH)
                 .maxAge(jwtTokenProvider.getAccessExpiryMs() * 800 / 1000)
                 .sameSite("Strict")
                 .build();
@@ -150,9 +149,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void clearRefreshTokenCookie(ServerHttpResponse response) {
-        ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
+        ResponseCookie cookie = ResponseCookie.from(Constants.Headers.COOKIE_REFRESH_TOKEN, "")
                 .httpOnly(true)
-                .path("/api/v1/auth")
+                .path(Constants.ApiPaths.AUTH)
                 .maxAge(0)
                 .build();
         response.addCookie(cookie);

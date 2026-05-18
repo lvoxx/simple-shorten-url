@@ -1,5 +1,6 @@
 package io.lvoxx.ssurl.redirect_service.controller;
 
+import io.lvoxx.ssurl.common.util.Constants;
 import io.lvoxx.ssurl.redirect_service.service.RedirectService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,22 +31,22 @@ public class RedirectController {
         }
 
         @Operation(summary = "Redirect to original URL by short code")
-        @ApiResponse(responseCode = "302", description = "Redirect to original URL", headers = @Header(name = "Location", description = "Original URL", schema = @Schema(type = "string")))
+        @ApiResponse(responseCode = "302", description = "Redirect to original URL", headers = @Header(name = Constants.Headers.LOCATION, description = "Original URL", schema = @Schema(type = "string")))
         @ApiResponse(responseCode = "404", description = "Short code not found")
         @ApiResponse(responseCode = "410", description = "URL has expired")
         @ApiResponse(responseCode = "500", description = "Internal server error")
-        @GetMapping("/{shortCode:[a-zA-Z0-9]+}")
+        @GetMapping("/{shortCode:" + Constants.Patterns.SHORT_CODE + "}")
         public Mono<ResponseEntity<Void>> redirect(
                         @Parameter(description = "Short code (Base62 encoded ID)", example = "1aB3xZ", required = true) @PathVariable String shortCode,
                         ServerHttpRequest request) {
                 String ip = Objects.requireNonNullElse(
-                                request.getHeaders().getFirst("X-Forwarded-For"),
+                                request.getHeaders().getFirst(Constants.Headers.X_FORWARDED_FOR),
                                 Objects.requireNonNullElse(
                                                 request.getRemoteAddress() != null
                                                                 ? request.getRemoteAddress().getAddress()
                                                                                 .getHostAddress()
                                                                 : null,
-                                                "unknown"));
+                                                Constants.Defaults.UNKNOWN_IP));
                 String userAgent = request.getHeaders().getFirst(HttpHeaders.USER_AGENT);
                 String referer = request.getHeaders().getFirst(HttpHeaders.REFERER);
 
