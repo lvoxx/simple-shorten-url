@@ -1,182 +1,275 @@
 package io.lvoxx.ssurl.api_service.service.impl;
 
-import io.lvoxx.ssurl.api_service.repository.UserRepository;
-import io.lvoxx.ssurl.common.model.User;
-import io.lvoxx.ssurl.common.dto.response.UserResponse;
-import io.lvoxx.ssurl.common.exception.UserNotFoundException;
-import io.lvoxx.ssurl.common.mapper.UserMapper;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.time.LocalDateTime;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.redisson.api.RBatch;
+import org.redisson.api.RKeysAsync;
+import org.redisson.api.RedissonClient;
+
+import io.lvoxx.ssurl.api_service.repository.UserRepository;
+import io.lvoxx.ssurl.common.dto.response.UserResponse;
+import io.lvoxx.ssurl.common.exception.UserNotFoundException;
+import io.lvoxx.ssurl.common.mapper.UserMapper;
+import io.lvoxx.ssurl.common.model.User;
+import io.lvoxx.ssurl.common.util.Constants;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.time.LocalDateTime;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
+/**
+ * Unit tests for {@link UserServiceImpl}.
+ *
+ * <p>
+ * Tests cover:
+ * <ul>
+ * <li>Read paths: {@code getById} and {@code getByUsername} (happy +
+ * not-found).</li>
+ * <li>Mutation paths: {@code updateEmail} and {@code deactivate} – verifying
+ * both
+ * DB persistence and that the Redisson atomic cache-evict batch is
+ * triggered.</li>
+ * </ul>
+ */
 @ExtendWith(MockitoExtension.class)
+@DisplayName("UserServiceImpl")
 class UserServiceImplTest {
 
-    @Mock private UserRepository userRepository;
-    @Mock private UserMapper userMapper;
+    // ── Mocks ─────────────────────────────────────────────────────────────────
 
-    private UserServiceImpl userService;
+    @Mock
+    UserRepository userRepository;
+    @Mock
+    UserMapper userMapper;
+
+    // Redisson chain
+    @Mock
+    RedissonClient redisson;
+    @Mock
+    RBatch rBatch;
+    @Mock
+    RKeysAsync rKeys;
+
+    @InjectMocks
+    UserServiceImpl userService;
+
+    // ── Fixtures ──────────────────────────────────────────────────────────────
+
+    private User testUser;
+    private UserResponse testUserResponse;
 
     @BeforeEach
     void setUp() {
-        userService = new UserServiceImpl(userRepository, userMapper);
+        testUser = new User();
+        testUser.setId(1L);
+        testUser.setUsername("lvoxx");
+        testUser.setEmail("lvoxx@example.com");
+        testUser.setRole("USER");
+        testUser.setActive(true);
+
+        testUserResponse = new UserResponse(1L, "lvoxx", "lvoxx@example.com", "USER", true, LocalDateTime.now());
+
+        // Redisson batch chain → no-op
+        when(redisson.createBatch()).thenReturn(rBatch);
+        when(rBatch.getKeys()).thenReturn(rKeys);
+        when(rKeys.deleteAsync(any(String[].class))).thenReturn(null);
+        when(rBatch.execute()).thenReturn(null);
     }
 
-    private User createUser(Long id, String username, String email, boolean active) {
-        User user = new User();
-        user.setId(id);
-        user.setUsername(username);
-        user.setEmail(email);
-        user.setRole("USER");
-        user.setActive(active);
-        return user;
-    }
-
-    private UserResponse createResponse(Long id, String username, String email, boolean active) {
-        return new UserResponse(id, username, email, "USER", active, LocalDateTime.now());
-    }
+    // =========================================================================
+    // getById
+    // =========================================================================
 
     @Nested
-    @DisplayName("getById")
+    @DisplayName("getById()")
     class GetById {
 
         @Test
-        @DisplayName("returns user when found")
-        void getById_found() {
-            User user = createUser(1L, "alice", "alice@example.com", true);
-            UserResponse response = createResponse(1L, "alice", "alice@example.com", true);
-
-            when(userRepository.findById(1L)).thenReturn(Mono.just(user));
-            when(userMapper.toResponse(user)).thenReturn(response);
+        @DisplayName("existing user – returns UserResponse")
+        void getById_exists_returnsResponse() {
+            when(userRepository.findById(1L)).thenReturn(Mono.just(testUser));
+            when(userMapper.toResponse(testUser)).thenReturn(testUserResponse);
 
             StepVerifier.create(userService.getById(1L))
                     .assertNext(r -> {
                         assertThat(r.id()).isEqualTo(1L);
-                        assertThat(r.username()).isEqualTo("alice");
+                        assertThat(r.username()).isEqualTo("lvoxx");
+                        assertThat(r.email()).isEqualTo("lvoxx@example.com");
                     })
                     .verifyComplete();
+
+            verify(userRepository).findById(1L);
+            // Read-only path must never touch the cache-evict batch
+            verify(redisson, never()).createBatch();
         }
 
         @Test
-        @DisplayName("throws UserNotFoundException when not found")
-        void getById_notFound_throws() {
-            when(userRepository.findById(999L)).thenReturn(Mono.empty());
+        @DisplayName("non-existent id – emits UserNotFoundException")
+        void getById_notFound_throwsException() {
+            when(userRepository.findById(99L)).thenReturn(Mono.empty());
 
-            StepVerifier.create(userService.getById(999L))
+            StepVerifier.create(userService.getById(99L))
                     .expectError(UserNotFoundException.class)
                     .verify();
+
+            verify(userMapper, never()).toResponse(any());
         }
     }
 
+    // =========================================================================
+    // getByUsername
+    // =========================================================================
+
     @Nested
-    @DisplayName("getByUsername")
+    @DisplayName("getByUsername()")
     class GetByUsername {
 
         @Test
-        @DisplayName("returns user when found")
-        void getByUsername_found() {
-            User user = createUser(1L, "alice", "alice@example.com", true);
-            UserResponse response = createResponse(1L, "alice", "alice@example.com", true);
+        @DisplayName("existing username – returns UserResponse")
+        void getByUsername_exists_returnsResponse() {
+            when(userRepository.findByUsername("lvoxx")).thenReturn(Mono.just(testUser));
+            when(userMapper.toResponse(testUser)).thenReturn(testUserResponse);
 
-            when(userRepository.findByUsername("alice")).thenReturn(Mono.just(user));
-            when(userMapper.toResponse(user)).thenReturn(response);
-
-            StepVerifier.create(userService.getByUsername("alice"))
-                    .assertNext(r -> assertThat(r.username()).isEqualTo("alice"))
+            StepVerifier.create(userService.getByUsername("lvoxx"))
+                    .assertNext(r -> assertThat(r.username()).isEqualTo("lvoxx"))
                     .verifyComplete();
         }
 
         @Test
-        @DisplayName("throws UserNotFoundException when not found")
-        void getByUsername_notFound_throws() {
-            when(userRepository.findByUsername("unknown")).thenReturn(Mono.empty());
+        @DisplayName("unknown username – emits UserNotFoundException")
+        void getByUsername_notFound_throwsException() {
+            when(userRepository.findByUsername("ghost")).thenReturn(Mono.empty());
 
-            StepVerifier.create(userService.getByUsername("unknown"))
+            StepVerifier.create(userService.getByUsername("ghost"))
                     .expectError(UserNotFoundException.class)
                     .verify();
         }
     }
 
+    // =========================================================================
+    // updateEmail
+    // =========================================================================
+
     @Nested
-    @DisplayName("updateEmail")
+    @DisplayName("updateEmail()")
     class UpdateEmail {
 
         @Test
-        @DisplayName("updates and returns user with new email")
-        void updateEmail_success() {
-            User user = createUser(1L, "alice", "old@example.com", true);
-            User updatedUser = createUser(1L, "alice", "new@example.com", true);
-            UserResponse response = createResponse(1L, "alice", "new@example.com", true);
+        @DisplayName("valid id – saves new email and evicts both cache keys atomically")
+        void updateEmail_validId_savesAndEvictsCache() {
+            User updatedUser = new User();
+            updatedUser.setId(1L);
+            updatedUser.setUsername("lvoxx");
+            updatedUser.setEmail("new@example.com");
+            updatedUser.setRole("USER");
+            updatedUser.setActive(true);
 
-            when(userRepository.findById(1L)).thenReturn(Mono.just(user));
-            when(userRepository.save(any())).thenReturn(Mono.just(updatedUser));
-            when(userMapper.toResponse(updatedUser)).thenReturn(response);
+            UserResponse updatedResponse = new UserResponse(1L, "lvoxx", "new@example.com", "USER", true,
+                    LocalDateTime.now());
+
+            when(userRepository.findById(1L)).thenReturn(Mono.just(testUser));
+            when(userRepository.save(any(User.class))).thenReturn(Mono.just(updatedUser));
+            when(userMapper.toResponse(updatedUser)).thenReturn(updatedResponse);
 
             StepVerifier.create(userService.updateEmail(1L, "new@example.com"))
-                    .assertNext(r -> assertThat(r.email()).isEqualTo("new@example.com"))
+                    .assertNext(r -> {
+                        assertThat(r.email()).isEqualTo("new@example.com");
+                        assertThat(r.username()).isEqualTo("lvoxx");
+                    })
                     .verifyComplete();
+
+            // Verify email was actually updated on the saved entity
+            verify(userRepository).save(argThat(u -> "new@example.com".equals(u.getEmail())));
+
+            // Verify atomic cache eviction was triggered (both by-id and by-name keys)
+            verify(redisson, atLeastOnce()).createBatch();
+            verify(rKeys, atLeastOnce()).deleteAsync(
+                    contains(Constants.Cache.KEY_USER_BY_ID + "1"),
+                    contains(Constants.Cache.KEY_USER_BY_NAME + "lvoxx"));
         }
 
         @Test
-        @DisplayName("throws UserNotFoundException when user not found")
-        void updateEmail_notFound_throws() {
-            when(userRepository.findById(999L)).thenReturn(Mono.empty());
+        @DisplayName("non-existent id – emits UserNotFoundException without save")
+        void updateEmail_notFound_throwsException() {
+            when(userRepository.findById(99L)).thenReturn(Mono.empty());
 
-            StepVerifier.create(userService.updateEmail(999L, "new@example.com"))
+            StepVerifier.create(userService.updateEmail(99L, "new@example.com"))
                     .expectError(UserNotFoundException.class)
                     .verify();
 
             verify(userRepository, never()).save(any());
+            verify(redisson, never()).createBatch();
         }
     }
 
+    // =========================================================================
+    // deactivate
+    // =========================================================================
+
     @Nested
-    @DisplayName("deactivate")
+    @DisplayName("deactivate()")
     class Deactivate {
 
         @Test
-        @DisplayName("sets user active to false")
-        void deactivate_success() {
-            User user = createUser(1L, "alice", "alice@example.com", true);
-
-            when(userRepository.findById(1L)).thenReturn(Mono.just(user));
-            when(userRepository.save(any())).thenAnswer(inv -> {
-                User saved = inv.getArgument(0);
-                return Mono.just(saved);
-            });
+        @DisplayName("valid id – sets active=false and evicts both cache keys atomically")
+        void deactivate_validId_deactivatesAndEvictsCache() {
+            when(userRepository.findById(1L)).thenReturn(Mono.just(testUser));
+            when(userRepository.save(any(User.class))).thenReturn(Mono.just(testUser));
 
             StepVerifier.create(userService.deactivate(1L))
                     .verifyComplete();
 
-            verify(userRepository).save(user);
+            // User must be saved with active=false
+            verify(userRepository).save(argThat(u -> !u.isActive()));
+
+            // Atomic cache eviction must be triggered for both key types
+            verify(redisson, atLeastOnce()).createBatch();
+            verify(rKeys, atLeastOnce()).deleteAsync(
+                    contains(Constants.Cache.KEY_USER_BY_ID + "1"),
+                    contains(Constants.Cache.KEY_USER_BY_NAME + "lvoxx"));
         }
 
         @Test
-        @DisplayName("throws UserNotFoundException when user not found")
-        void deactivate_notFound_throws() {
-            when(userRepository.findById(999L)).thenReturn(Mono.empty());
+        @DisplayName("non-existent id – emits UserNotFoundException without save or cache interaction")
+        void deactivate_notFound_throwsException() {
+            when(userRepository.findById(55L)).thenReturn(Mono.empty());
 
-            StepVerifier.create(userService.deactivate(999L))
+            StepVerifier.create(userService.deactivate(55L))
                     .expectError(UserNotFoundException.class)
                     .verify();
 
             verify(userRepository, never()).save(any());
+            verify(redisson, never()).createBatch();
+        }
+
+        @Test
+        @DisplayName("already inactive user – still persists (idempotent) and evicts cache")
+        void deactivate_alreadyInactive_isIdempotent() {
+            testUser.setActive(false); // already deactivated
+
+            when(userRepository.findById(1L)).thenReturn(Mono.just(testUser));
+            when(userRepository.save(any(User.class))).thenReturn(Mono.just(testUser));
+
+            StepVerifier.create(userService.deactivate(1L))
+                    .verifyComplete();
+
+            verify(userRepository).save(argThat(u -> !u.isActive()));
+            verify(redisson, atLeastOnce()).createBatch();
         }
     }
 }

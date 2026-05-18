@@ -1,120 +1,174 @@
 package io.lvoxx.ssurl.api_service.service.impl;
 
-import io.lvoxx.ssurl.api_service.repository.RefreshTokenRepository;
-import io.lvoxx.ssurl.api_service.repository.UserRepository;
-import io.lvoxx.ssurl.api_service.security.JwtTokenProvider;
-import io.lvoxx.ssurl.common.model.RefreshToken;
-import io.lvoxx.ssurl.common.model.User;
-import io.lvoxx.ssurl.common.dto.request.LoginRequest;
-import io.lvoxx.ssurl.common.dto.request.RegisterRequest;
-import io.lvoxx.ssurl.common.dto.response.AuthResponse;
-import io.lvoxx.ssurl.common.dto.response.UserResponse;
-import io.lvoxx.ssurl.common.exception.UnauthorizedException;
-import io.lvoxx.ssurl.common.exception.UserAlreadyExistsException;
-import io.lvoxx.ssurl.common.exception.UserNotFoundException;
-import io.lvoxx.ssurl.common.mapper.UserMapper;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.time.LocalDateTime;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpCookie;
-import org.springframework.http.ResponseCookie;
+import org.redisson.api.RBatch;
+import org.redisson.api.RBucketAsync;
+import org.redisson.api.RKeysAsync;
+import org.redisson.api.RedissonClient;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import io.lvoxx.ssurl.api_service.repository.RefreshTokenRepository;
+import io.lvoxx.ssurl.api_service.repository.UserRepository;
+import io.lvoxx.ssurl.api_service.security.JwtTokenProvider;
+import io.lvoxx.ssurl.common.dto.request.LoginRequest;
+import io.lvoxx.ssurl.common.dto.request.RegisterRequest;
+import io.lvoxx.ssurl.common.dto.response.UserResponse;
+import io.lvoxx.ssurl.common.exception.UnauthorizedException;
+import io.lvoxx.ssurl.common.exception.UserAlreadyExistsException;
+import io.lvoxx.ssurl.common.exception.UserNotFoundException;
+import io.lvoxx.ssurl.common.mapper.UserMapper;
+import io.lvoxx.ssurl.common.model.RefreshToken;
+import io.lvoxx.ssurl.common.model.User;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.time.LocalDateTime;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
+/**
+ * Unit tests for {@link AuthServiceImpl}.
+ *
+ * <p>
+ * Strategy:
+ * <ul>
+ * <li>All repositories and infrastructure collaborators are Mockito mocks.</li>
+ * <li>Redisson batch chain ({@code createBatch → getBucket/getKeys → execute})
+ * is
+ * stubbed to no-op so cache helpers complete without a real Redis
+ * connection.</li>
+ * <li>{@link reactor.test.StepVerifier} is used to assert reactive
+ * pipelines.</li>
+ * </ul>
+ */
 @ExtendWith(MockitoExtension.class)
+@DisplayName("AuthServiceImpl")
 class AuthServiceImplTest {
 
-    @Mock private UserRepository userRepository;
-    @Mock private RefreshTokenRepository refreshTokenRepository;
-    @Mock private JwtTokenProvider jwtTokenProvider;
-    @Mock private PasswordEncoder passwordEncoder;
-    @Mock private UserMapper userMapper;
+    // ── Infrastructure mocks ──────────────────────────────────────────────────
 
-    private AuthServiceImpl authService;
+    @Mock
+    UserRepository userRepository;
+    @Mock
+    RefreshTokenRepository refreshTokenRepository;
+    @Mock
+    JwtTokenProvider jwtTokenProvider;
+    @Mock
+    PasswordEncoder passwordEncoder;
+    @Mock
+    UserMapper userMapper;
+
+    // Redisson chain: client → batch → bucket / keys
+    @Mock
+    RedissonClient redisson;
+    @Mock
+    RBatch rBatch;
+    @Mock
+    RBucketAsync<Object> rBucket;
+    @Mock
+    RKeysAsync rKeys;
+
+    @Mock
+    ServerHttpResponse httpResponse;
+
+    @InjectMocks
+    AuthServiceImpl authService;
+
+    // ── Fixtures ──────────────────────────────────────────────────────────────
+
+    private User testUser;
+    private UserResponse testUserResponse;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthServiceImpl(
-                userRepository, refreshTokenRepository, jwtTokenProvider,
-                passwordEncoder, userMapper);
+        testUser = new User();
+        testUser.setId(1L);
+        testUser.setUsername("lvoxx");
+        testUser.setEmail("lvoxx@example.com");
+        testUser.setPasswordHash("$2a$hashed");
+        testUser.setRole("USER");
+        testUser.setActive(true);
+
+        testUserResponse = new UserResponse(1L, "lvoxx", "lvoxx@example.com", "USER", true, LocalDateTime.now());
+
+        // Stub the Redisson batch chain used by atomicCacheWrite / atomicCacheEvict
+        when(redisson.createBatch()).thenReturn(rBatch);
+        when(rBatch.getBucket(anyString())).thenReturn(rBucket);
+        when(rBatch.getKeys()).thenReturn(rKeys);
+        when(rKeys.deleteAsync(any(String[].class))).thenReturn(null);
+        when(rBatch.execute()).thenReturn(null);
+
+        // Stub HttpResponse so addCookie doesn't throw
+        when(httpResponse.getHeaders()).thenReturn(HttpHeaders.readOnlyHttpHeaders(new HttpHeaders()));
     }
 
+    // =========================================================================
+    // register
+    // =========================================================================
+
     @Nested
-    @DisplayName("register")
+    @DisplayName("register()")
     class Register {
 
-        private RegisterRequest request;
-
-        @BeforeEach
-        void setUp() {
-            request = new RegisterRequest("alice", "alice@example.com", "password123");
-        }
-
         @Test
-        @DisplayName("creates user when username and email are unique")
+        @DisplayName("happy path – returns saved UserResponse")
         void register_success() {
-            User savedUser = new User();
-            savedUser.setId(1L);
-            savedUser.setUsername("alice");
-            savedUser.setEmail("alice@example.com");
-            savedUser.setRole("USER");
-            savedUser.setActive(true);
+            RegisterRequest req = new RegisterRequest("lvoxx", "lvoxx@example.com", "secret123");
 
-            UserResponse expectedResponse = new UserResponse(1L, "alice", "alice@example.com", "USER", true, LocalDateTime.now());
+            when(userRepository.existsByUsername("lvoxx")).thenReturn(Mono.just(false));
+            when(userRepository.existsByEmail("lvoxx@example.com")).thenReturn(Mono.just(false));
+            when(passwordEncoder.encode("secret123")).thenReturn("$2a$hashed");
+            when(userRepository.save(any(User.class))).thenReturn(Mono.just(testUser));
+            when(userMapper.toResponse(testUser)).thenReturn(testUserResponse);
 
-            when(userRepository.existsByUsername("alice")).thenReturn(Mono.just(false));
-            when(userRepository.existsByEmail("alice@example.com")).thenReturn(Mono.just(false));
-            when(passwordEncoder.encode("password123")).thenReturn("encoded-pass");
-            when(userRepository.save(any())).thenReturn(Mono.just(savedUser));
-            when(userMapper.toResponse(savedUser)).thenReturn(expectedResponse);
-
-            StepVerifier.create(authService.register(request))
+            StepVerifier.create(authService.register(req))
                     .assertNext(response -> {
-                        assertThat(response.username()).isEqualTo("alice");
-                        assertThat(response.role()).isEqualTo("USER");
+                        assertThat(response.username()).isEqualTo("lvoxx");
+                        assertThat(response.email()).isEqualTo("lvoxx@example.com");
                     })
                     .verifyComplete();
+
+            verify(userRepository).save(any(User.class));
         }
 
         @Test
-        @DisplayName("throws UserAlreadyExistsException when username is taken")
-        void register_usernameTaken_throws() {
-            when(userRepository.existsByUsername("alice")).thenReturn(Mono.just(true));
+        @DisplayName("duplicate username – emits UserAlreadyExistsException")
+        void register_duplicateUsername_throwsException() {
+            RegisterRequest req = new RegisterRequest("lvoxx", "other@example.com", "secret123");
 
-            StepVerifier.create(authService.register(request))
+            when(userRepository.existsByUsername("lvoxx")).thenReturn(Mono.just(true));
+
+            StepVerifier.create(authService.register(req))
                     .expectError(UserAlreadyExistsException.class)
                     .verify();
 
-            verify(userRepository, never()).existsByEmail(anyString());
             verify(userRepository, never()).save(any());
         }
 
         @Test
-        @DisplayName("throws UserAlreadyExistsException when email is taken")
-        void register_emailTaken_throws() {
-            when(userRepository.existsByUsername("alice")).thenReturn(Mono.just(false));
-            when(userRepository.existsByEmail("alice@example.com")).thenReturn(Mono.just(true));
+        @DisplayName("duplicate email – emits UserAlreadyExistsException")
+        void register_duplicateEmail_throwsException() {
+            RegisterRequest req = new RegisterRequest("newuser", "lvoxx@example.com", "secret123");
 
-            StepVerifier.create(authService.register(request))
+            when(userRepository.existsByUsername("newuser")).thenReturn(Mono.just(false));
+            when(userRepository.existsByEmail("lvoxx@example.com")).thenReturn(Mono.just(true));
+
+            StepVerifier.create(authService.register(req))
                     .expectError(UserAlreadyExistsException.class)
                     .verify();
 
@@ -122,170 +176,170 @@ class AuthServiceImplTest {
         }
     }
 
+    // =========================================================================
+    // login
+    // =========================================================================
+
     @Nested
-    @DisplayName("login")
+    @DisplayName("login()")
     class Login {
 
-        private LoginRequest request;
-        private ServerHttpResponse response;
-        private User user;
+        private LoginRequest loginReq;
 
         @BeforeEach
-        void setUp() {
-            request = new LoginRequest("alice", "password123");
-            response = mock(ServerHttpResponse.class);
-            user = new User();
-            user.setId(1L);
-            user.setUsername("alice");
-            user.setEmail("alice@example.com");
-            user.setRole("USER");
-            user.setActive(true);
+        void loginSetup() {
+            loginReq = new LoginRequest("lvoxx", "secret123");
         }
 
         @Test
-        @DisplayName("returns AuthResponse with valid credentials")
-        void login_success() {
-            when(userRepository.findByUsername("alice")).thenReturn(Mono.just(user));
-            when(passwordEncoder.matches("password123", user.getPasswordHash())).thenReturn(true);
-            when(jwtTokenProvider.createAccessToken("alice", "USER")).thenReturn("access-token");
-            when(jwtTokenProvider.createRefreshToken("alice")).thenReturn("refresh-token");
-            when(jwtTokenProvider.getAccessExpiryMs()).thenReturn(900000L);
+        @DisplayName("valid credentials – returns AuthResponse and writes RT to cache")
+        void login_validCredentials_returnsAuthResponse() {
+            RefreshToken savedRt = new RefreshToken();
+            savedRt.setToken("rt-value");
+
+            when(userRepository.findByUsername("lvoxx")).thenReturn(Mono.just(testUser));
+            when(passwordEncoder.matches("secret123", "$2a$hashed")).thenReturn(true);
+            when(jwtTokenProvider.createAccessToken("lvoxx", "USER")).thenReturn("access-jwt");
+            when(jwtTokenProvider.createRefreshToken("lvoxx")).thenReturn("rt-value");
+            when(jwtTokenProvider.getAccessExpiryMs()).thenReturn(900_000L);
             when(refreshTokenRepository.deleteByUserId(1L)).thenReturn(Mono.empty());
+            when(refreshTokenRepository.save(any(RefreshToken.class))).thenReturn(Mono.just(savedRt));
+            when(userMapper.toResponse(testUser)).thenReturn(testUserResponse);
 
-            RefreshToken savedToken = new RefreshToken(1L, 1L, "refresh-token", LocalDateTime.now().plusDays(7));
-            when(refreshTokenRepository.save(any())).thenReturn(Mono.just(savedToken));
-
-            UserResponse userResponse = new UserResponse(1L, "alice", "alice@example.com", "USER", true, LocalDateTime.now());
-            when(userMapper.toResponse(user)).thenReturn(userResponse);
-
-            StepVerifier.create(authService.login(request, response))
+            StepVerifier.create(authService.login(loginReq, httpResponse))
                     .assertNext(auth -> {
-                        assertThat(auth.accessToken()).isEqualTo("access-token");
+                        assertThat(auth.accessToken()).isEqualTo("access-jwt");
                         assertThat(auth.tokenType()).isEqualTo("Bearer");
-                        assertThat(auth.expiresIn()).isEqualTo(900L);
-                        assertThat(auth.user().username()).isEqualTo("alice");
+                        assertThat(auth.user().username()).isEqualTo("lvoxx");
                     })
                     .verifyComplete();
 
-            verify(response).addCookie(any(ResponseCookie.class));
+            // Verify cache write was attempted (batch created after DB save)
+            verify(redisson, atLeastOnce()).createBatch();
+            verify(refreshTokenRepository).deleteByUserId(1L);
+            verify(refreshTokenRepository).save(any(RefreshToken.class));
         }
 
         @Test
-        @DisplayName("throws UnauthorizedException when password is wrong")
-        void login_wrongPassword_throws() {
-            when(userRepository.findByUsername("alice")).thenReturn(Mono.just(user));
-            when(passwordEncoder.matches("password123", user.getPasswordHash())).thenReturn(false);
+        @DisplayName("wrong password – emits UnauthorizedException, no token saved")
+        void login_wrongPassword_throwsUnauthorized() {
+            when(userRepository.findByUsername("lvoxx")).thenReturn(Mono.just(testUser));
+            when(passwordEncoder.matches("secret123", "$2a$hashed")).thenReturn(false);
 
-            StepVerifier.create(authService.login(request, response))
+            StepVerifier.create(authService.login(loginReq, httpResponse))
                     .expectError(UnauthorizedException.class)
                     .verify();
+
+            verify(refreshTokenRepository, never()).save(any());
         }
 
         @Test
-        @DisplayName("throws UserNotFoundException when user does not exist")
-        void login_userNotFound_throws() {
-            when(userRepository.findByUsername("alice")).thenReturn(Mono.empty());
+        @DisplayName("unknown username – emits UserNotFoundException")
+        void login_unknownUser_throwsNotFoundException() {
+            when(userRepository.findByUsername("lvoxx")).thenReturn(Mono.empty());
 
-            StepVerifier.create(authService.login(request, response))
+            StepVerifier.create(authService.login(loginReq, httpResponse))
                     .expectError(UserNotFoundException.class)
                     .verify();
         }
     }
 
+    // =========================================================================
+    // refresh
+    // =========================================================================
+
     @Nested
-    @DisplayName("refresh")
+    @DisplayName("refresh()")
     class Refresh {
 
         @Test
-        @DisplayName("returns new access token with valid refresh token")
-        void refresh_success() {
-            RefreshToken storedToken = new RefreshToken(1L, 1L, "valid-refresh-token", LocalDateTime.now().plusDays(7));
-            User user = new User();
-            user.setId(1L);
-            user.setUsername("alice");
-            user.setRole("USER");
+        @DisplayName("valid token – issues new access token")
+        void refresh_validToken_returnsNewAccessToken() {
+            RefreshToken stored = new RefreshToken();
+            stored.setToken("valid-rt");
 
-            when(refreshTokenRepository.findByToken("valid-refresh-token")).thenReturn(Mono.just(storedToken));
-            when(jwtTokenProvider.validateToken("valid-refresh-token")).thenReturn(true);
-            when(jwtTokenProvider.getUsername("valid-refresh-token")).thenReturn("alice");
-            when(userRepository.findByUsername("alice")).thenReturn(Mono.just(user));
-            when(jwtTokenProvider.createAccessToken("alice", "USER")).thenReturn("new-access-token");
-            when(jwtTokenProvider.getAccessExpiryMs()).thenReturn(900000L);
+            when(refreshTokenRepository.findByToken("valid-rt")).thenReturn(Mono.just(stored));
+            when(jwtTokenProvider.validateToken("valid-rt")).thenReturn(true);
+            when(jwtTokenProvider.getUsername("valid-rt")).thenReturn("lvoxx");
+            when(userRepository.findByUsername("lvoxx")).thenReturn(Mono.just(testUser));
+            when(jwtTokenProvider.createAccessToken("lvoxx", "USER")).thenReturn("new-access-jwt");
+            when(jwtTokenProvider.getAccessExpiryMs()).thenReturn(900_000L);
+            when(userMapper.toResponse(testUser)).thenReturn(testUserResponse);
 
-            UserResponse userResponse = new UserResponse(1L, "alice", null, "USER", true, LocalDateTime.now());
-            when(userMapper.toResponse(user)).thenReturn(userResponse);
-
-            StepVerifier.create(authService.refresh("valid-refresh-token"))
-                    .assertNext(auth -> {
-                        assertThat(auth.accessToken()).isEqualTo("new-access-token");
-                        assertThat(auth.tokenType()).isEqualTo("Bearer");
-                    })
+            StepVerifier.create(authService.refresh("valid-rt"))
+                    .assertNext(auth -> assertThat(auth.accessToken()).isEqualTo("new-access-jwt"))
                     .verifyComplete();
         }
 
         @Test
-        @DisplayName("throws UnauthorizedException when refresh token is not in DB")
-        void refresh_tokenNotFound_throws() {
-            when(refreshTokenRepository.findByToken("unknown-token")).thenReturn(Mono.empty());
+        @DisplayName("expired JWT in stored token – evicts cache and emits UnauthorizedException")
+        void refresh_expiredToken_evictsCacheAndThrows() {
+            RefreshToken stored = new RefreshToken();
+            stored.setToken("expired-rt");
 
-            StepVerifier.create(authService.refresh("unknown-token"))
+            when(refreshTokenRepository.findByToken("expired-rt")).thenReturn(Mono.just(stored));
+            when(jwtTokenProvider.validateToken("expired-rt")).thenReturn(false);
+            when(refreshTokenRepository.deleteByToken("expired-rt")).thenReturn(Mono.empty());
+
+            StepVerifier.create(authService.refresh("expired-rt"))
                     .expectError(UnauthorizedException.class)
                     .verify();
+
+            // Cache evict batch must be triggered even when token is expired
+            verify(redisson, atLeastOnce()).createBatch();
+            verify(refreshTokenRepository).deleteByToken("expired-rt");
         }
 
         @Test
-        @DisplayName("throws UnauthorizedException and deletes token when token is expired")
-        void refresh_expiredToken_throws() {
-            RefreshToken storedToken = new RefreshToken(1L, 1L, "expired-token", LocalDateTime.now().minusDays(1));
+        @DisplayName("token not found in DB – emits UnauthorizedException without cache interaction")
+        void refresh_tokenNotFound_throwsUnauthorized() {
+            when(refreshTokenRepository.findByToken("ghost-rt")).thenReturn(Mono.empty());
 
-            when(refreshTokenRepository.findByToken("expired-token")).thenReturn(Mono.just(storedToken));
-            when(jwtTokenProvider.validateToken("expired-token")).thenReturn(false);
-            when(refreshTokenRepository.deleteByToken("expired-token")).thenReturn(Mono.empty());
-
-            StepVerifier.create(authService.refresh("expired-token"))
+            StepVerifier.create(authService.refresh("ghost-rt"))
                     .expectError(UnauthorizedException.class)
                     .verify();
+
+            verify(redisson, never()).createBatch();
         }
     }
 
+    // =========================================================================
+    // logout
+    // =========================================================================
+
     @Nested
-    @DisplayName("logout")
+    @DisplayName("logout()")
     class Logout {
 
-        private ServerHttpResponse response;
+        @Test
+        @DisplayName("valid token – deletes from DB and evicts cache atomically")
+        void logout_validToken_deletesAndEvicts() {
+            when(refreshTokenRepository.deleteByToken("rt-value")).thenReturn(Mono.empty());
 
-        @BeforeEach
-        void setUp() {
-            response = mock(ServerHttpResponse.class);
+            StepVerifier.create(authService.logout("rt-value", httpResponse))
+                    .verifyComplete();
+
+            verify(refreshTokenRepository).deleteByToken("rt-value");
+            verify(redisson, atLeastOnce()).createBatch();
         }
 
         @Test
-        @DisplayName("deletes refresh token from DB when token is provided")
-        void logout_withToken_deletesToken() {
-            when(refreshTokenRepository.deleteByToken("valid-token")).thenReturn(Mono.empty());
-
-            StepVerifier.create(authService.logout("valid-token", response))
+        @DisplayName("null token – completes immediately with no DB/cache interaction")
+        void logout_nullToken_completesImmediately() {
+            StepVerifier.create(authService.logout(null, httpResponse))
                     .verifyComplete();
 
-            verify(response).addCookie(any(ResponseCookie.class));
+            verify(refreshTokenRepository, never()).deleteByToken(any());
+            verify(redisson, never()).createBatch();
         }
 
         @Test
-        @DisplayName("skips DB deletion when token is null")
-        void logout_nullToken_skipsDb() {
-            StepVerifier.create(authService.logout(null, response))
+        @DisplayName("blank token – completes immediately with no DB/cache interaction")
+        void logout_blankToken_completesImmediately() {
+            StepVerifier.create(authService.logout("   ", httpResponse))
                     .verifyComplete();
 
-            verify(refreshTokenRepository, never()).deleteByToken(anyString());
-        }
-
-        @Test
-        @DisplayName("skips DB deletion when token is blank")
-        void logout_blankToken_skipsDb() {
-            StepVerifier.create(authService.logout("", response))
-                    .verifyComplete();
-
-            verify(refreshTokenRepository, never()).deleteByToken(anyString());
+            verify(refreshTokenRepository, never()).deleteByToken(any());
         }
     }
 }

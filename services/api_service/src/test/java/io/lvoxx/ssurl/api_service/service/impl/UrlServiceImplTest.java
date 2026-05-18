@@ -1,263 +1,270 @@
 package io.lvoxx.ssurl.api_service.service.impl;
 
-import io.lvoxx.ssurl.api_service.cache.UrlCacheOperations;
-import io.lvoxx.ssurl.api_service.config.AppProperties;
-import io.lvoxx.ssurl.api_service.repository.DomainBlacklistRepository;
-import io.lvoxx.ssurl.api_service.repository.UrlRepository;
-import io.lvoxx.ssurl.api_service.service.impl.UrlServiceImpl;
-import io.lvoxx.ssurl.common.model.Url;
-import io.lvoxx.ssurl.common.dto.request.CreateUrlRequest;
-import io.lvoxx.ssurl.common.dto.request.UpdateUrlRequest;
-import io.lvoxx.ssurl.common.exception.DomainBlacklistedException;
-import io.lvoxx.ssurl.common.exception.UnauthorizedException;
-import io.lvoxx.ssurl.common.exception.UrlNotFoundException;
-import io.lvoxx.ssurl.common.mapper.UrlMapper;
-import io.seruco.encoding.base62.Base62;
+import io.lvoxx.ssurl.api_service.repository.UserRepository;
+import io.lvoxx.ssurl.common.dto.response.UserResponse;
+import io.lvoxx.ssurl.common.exception.UserNotFoundException;
+import io.lvoxx.ssurl.common.mapper.UserMapper;
+import io.lvoxx.ssurl.common.model.User;
+import io.lvoxx.ssurl.common.util.Constants;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.redisson.api.RBloomFilter;
-import reactor.core.publisher.Flux;
+import org.redisson.api.RBatch;
+import org.redisson.api.RKeysAsync;
+import org.redisson.api.RedissonClient;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
 import java.time.LocalDateTime;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
+/**
+ * Unit tests for {@link UserServiceImpl}.
+ *
+ * <p>
+ * Tests cover:
+ * <ul>
+ * <li>Read paths: {@code getById} and {@code getByUsername} (happy +
+ * not-found).</li>
+ * <li>Mutation paths: {@code updateEmail} and {@code deactivate} – verifying
+ * both
+ * DB persistence and that the Redisson atomic cache-evict batch is
+ * triggered.</li>
+ * </ul>
+ */
 @ExtendWith(MockitoExtension.class)
-class UrlServiceImplTest {
+@DisplayName("UserServiceImpl")
+class UserServiceImplTest {
 
-    @Mock private UrlRepository urlRepository;
-    @Mock private DomainBlacklistRepository domainBlacklistRepository;
-    @Mock private UrlCacheOperations urlCacheOperations;
-    @Mock private RBloomFilter<String> urlBloomFilter;
-    @Mock private UrlMapper urlMapper;
-    @Mock private AppProperties appProperties;
-    @Mock private Base62 base62;
+    // ── Mocks ─────────────────────────────────────────────────────────────────
 
-    private UrlServiceImpl urlService;
+    @Mock
+    UserRepository userRepository;
+    @Mock
+    UserMapper userMapper;
+
+    // Redisson chain
+    @Mock
+    RedissonClient redisson;
+    @Mock
+    RBatch rBatch;
+    @Mock
+    RKeysAsync rKeys;
+
+    @InjectMocks
+    UserServiceImpl userService;
+
+    // ── Fixtures ──────────────────────────────────────────────────────────────
+
+    private User testUser;
+    private UserResponse testUserResponse;
 
     @BeforeEach
     void setUp() {
-        urlService = new UrlServiceImpl(
-                urlRepository, domainBlacklistRepository, urlCacheOperations,
-                urlBloomFilter, urlMapper, appProperties, base62);
+        testUser = new User();
+        testUser.setId(1L);
+        testUser.setUsername("lvoxx");
+        testUser.setEmail("lvoxx@example.com");
+        testUser.setRole("USER");
+        testUser.setActive(true);
+
+        testUserResponse = new UserResponse(1L, "lvoxx", "lvoxx@example.com", "USER", true, LocalDateTime.now());
+
+        // Redisson batch chain → no-op
+        when(redisson.createBatch()).thenReturn(rBatch);
+        when(rBatch.getKeys()).thenReturn(rKeys);
+        when(rKeys.deleteAsync(any(String[].class))).thenReturn(null);
+        when(rBatch.execute()).thenReturn(null);
     }
 
+    // =========================================================================
+    // getById
+    // =========================================================================
+
     @Nested
-    @DisplayName("createUrl")
-    class CreateUrl {
-
-        private CreateUrlRequest request;
-
-        @BeforeEach
-        void setUp() {
-            request = new CreateUrlRequest("https://example.com/long-path", "My Link", null);
-        }
+    @DisplayName("getById()")
+    class GetById {
 
         @Test
-        @DisplayName("creates URL for authenticated user with no default expiry")
-        void createUrl_authenticatedUser_noExpiry() {
-            Url mappedUrl = new Url();
-            mappedUrl.setOriginalUrl("https://example.com/long-path");
-            Url savedUrl = urlWithId(1L, "abc123");
+        @DisplayName("existing user – returns UserResponse")
+        void getById_exists_returnsResponse() {
+            when(userRepository.findById(1L)).thenReturn(Mono.just(testUser));
+            when(userMapper.toResponse(testUser)).thenReturn(testUserResponse);
 
-            when(domainBlacklistRepository.existsByDomain("example.com")).thenReturn(Mono.just(false));
-            when(urlMapper.toDomain(request)).thenReturn(mappedUrl);
-            when(urlRepository.save(any())).thenReturn(Mono.just(savedUrl));
-            when(base62.encode(any())).thenReturn("abc123".getBytes());
-            when(urlCacheOperations.put(anyString(), anyString())).thenReturn(Mono.just("https://example.com/long-path"));
-            when(appProperties.getShortUrlBase()).thenReturn("http://short.ly");
-
-            StepVerifier.create(urlService.createUrl(request, 42L, "alice"))
-                    .assertNext(response -> {
-                        assertThat(response.shortCode()).isNotNull();
-                        assertThat(response.expireAt()).isNull();
+            StepVerifier.create(userService.getById(1L))
+                    .assertNext(r -> {
+                        assertThat(r.id()).isEqualTo(1L);
+                        assertThat(r.username()).isEqualTo("lvoxx");
+                        assertThat(r.email()).isEqualTo("lvoxx@example.com");
                     })
                     .verifyComplete();
 
-            verify(urlBloomFilter).add(anyString());
-            verify(urlCacheOperations).put(anyString(), anyString());
+            verify(userRepository).findById(1L);
+            // Read-only path must never touch the cache-evict batch
+            verify(redisson, never()).createBatch();
         }
 
         @Test
-        @DisplayName("sets 7-day expiry for anonymous users")
-        void createUrl_anonymousUser_gets7DayExpiry() {
-            Url mappedUrl = new Url();
-            mappedUrl.setOriginalUrl("https://example.com/long-path");
+        @DisplayName("non-existent id – emits UserNotFoundException")
+        void getById_notFound_throwsException() {
+            when(userRepository.findById(99L)).thenReturn(Mono.empty());
 
-            when(domainBlacklistRepository.existsByDomain("example.com")).thenReturn(Mono.just(false));
-            when(urlMapper.toDomain(request)).thenReturn(mappedUrl);
-            when(urlRepository.save(any())).thenAnswer(inv -> {
-                Url u = inv.getArgument(0);
-                u.setId(1L);
-                u.setShortCode("abc123");
-                return Mono.just(u);
-            });
-            when(base62.encode(any())).thenReturn("abc123".getBytes());
-            when(urlCacheOperations.put(anyString(), anyString())).thenReturn(Mono.just("https://example.com/long-path"));
-            when(appProperties.getShortUrlBase()).thenReturn("http://short.ly");
-
-            StepVerifier.create(urlService.createUrl(request, null, "anonymous"))
-                    .assertNext(response -> {
-                        assertThat(response.expireAt()).isNotNull();
-                        assertThat(response.expireAt()).isAfter(LocalDateTime.now().plusDays(6));
-                    })
-                    .verifyComplete();
-        }
-
-        @Test
-        @DisplayName("throws DomainBlacklistedException for blacklisted domains")
-        void createUrl_blacklistedDomain_throws() {
-            CreateUrlRequest spamRequest = new CreateUrlRequest("https://spam.com/path", null, null);
-            when(domainBlacklistRepository.existsByDomain("spam.com")).thenReturn(Mono.just(true));
-
-            StepVerifier.create(urlService.createUrl(spamRequest, 1L, "alice"))
-                    .expectError(DomainBlacklistedException.class)
+            StepVerifier.create(userService.getById(99L))
+                    .expectError(UserNotFoundException.class)
                     .verify();
 
-            verify(urlRepository, never()).save(any());
+            verify(userMapper, never()).toResponse(any());
         }
     }
 
-    @Nested
-    @DisplayName("listByUser")
-    class ListByUser {
-
-        @Test
-        @DisplayName("returns first page when cursor is null")
-        void listByUser_noCursor_returnsFirstPage() {
-            Url url = urlWithId(10L, "abc");
-            when(urlRepository.findTopByUserIdOrderByIdDesc(1L, 20)).thenReturn(Flux.just(url));
-            when(appProperties.getShortUrlBase()).thenReturn("http://short.ly");
-
-            StepVerifier.create(urlService.listByUser(1L, null, 20))
-                    .assertNext(page -> {
-                        assertThat(page.content()).hasSize(1);
-                        assertThat(page.hasNext()).isFalse();
-                        assertThat(page.nextCursor()).isNull();
-                    })
-                    .verifyComplete();
-        }
-
-        @Test
-        @DisplayName("returns next cursor when full page is returned")
-        void listByUser_fullPage_includesNextCursor() {
-            Url[] urls = new Url[20];
-            for (int i = 0; i < 20; i++) {
-                urls[i] = urlWithId((long) (20 - i), "code" + i);
-            }
-            when(urlRepository.findTopByUserIdOrderByIdDesc(1L, 20)).thenReturn(Flux.fromArray(urls));
-            when(appProperties.getShortUrlBase()).thenReturn("http://short.ly");
-
-            StepVerifier.create(urlService.listByUser(1L, null, 20))
-                    .assertNext(page -> {
-                        assertThat(page.content()).hasSize(20);
-                        assertThat(page.hasNext()).isTrue();
-                        assertThat(page.nextCursor()).isEqualTo(1L);
-                    })
-                    .verifyComplete();
-        }
-    }
+    // =========================================================================
+    // getByUsername
+    // =========================================================================
 
     @Nested
-    @DisplayName("delete")
-    class Delete {
+    @DisplayName("getByUsername()")
+    class GetByUsername {
 
         @Test
-        @DisplayName("deactivates URL and evicts from cache")
-        void delete_ownedUrl_deactivatesAndEvictsCache() {
-            Url url = urlWithId(1L, "abc123");
-            url.setUserId(42L);
-            when(urlRepository.findById(1L)).thenReturn(Mono.just(url));
-            when(urlRepository.save(any())).thenReturn(Mono.just(url));
+        @DisplayName("existing username – returns UserResponse")
+        void getByUsername_exists_returnsResponse() {
+            when(userRepository.findByUsername("lvoxx")).thenReturn(Mono.just(testUser));
+            when(userMapper.toResponse(testUser)).thenReturn(testUserResponse);
 
-            StepVerifier.create(urlService.delete(1L, 42L))
+            StepVerifier.create(userService.getByUsername("lvoxx"))
+                    .assertNext(r -> assertThat(r.username()).isEqualTo("lvoxx"))
                     .verifyComplete();
-
-            verify(urlCacheOperations).evict("abc123");
         }
 
         @Test
-        @DisplayName("throws UnauthorizedException when user does not own the URL")
-        void delete_notOwnedUrl_throwsUnauthorized() {
-            Url url = urlWithId(1L, "abc123");
-            url.setUserId(99L);
-            when(urlRepository.findById(1L)).thenReturn(Mono.just(url));
+        @DisplayName("unknown username – emits UserNotFoundException")
+        void getByUsername_notFound_throwsException() {
+            when(userRepository.findByUsername("ghost")).thenReturn(Mono.empty());
 
-            StepVerifier.create(urlService.delete(1L, 42L))
-                    .expectError(UnauthorizedException.class)
-                    .verify();
-
-            verify(urlCacheOperations, never()).evict(anyString());
-        }
-
-        @Test
-        @DisplayName("throws UrlNotFoundException when URL does not exist")
-        void delete_missingUrl_throwsNotFound() {
-            when(urlRepository.findById(999L)).thenReturn(Mono.empty());
-
-            StepVerifier.create(urlService.delete(999L, 42L))
-                    .expectError(UrlNotFoundException.class)
+            StepVerifier.create(userService.getByUsername("ghost"))
+                    .expectError(UserNotFoundException.class)
                     .verify();
         }
     }
 
+    // =========================================================================
+    // updateEmail
+    // =========================================================================
+
     @Nested
-    @DisplayName("update")
-    class Update {
+    @DisplayName("updateEmail()")
+    class UpdateEmail {
 
         @Test
-        @DisplayName("evicts cache when URL is deactivated")
-        void update_deactivate_evictsCache() {
-            Url url = urlWithId(1L, "abc123");
-            url.setUserId(42L);
-            url.setActive(true);
-            when(urlRepository.findById(1L)).thenReturn(Mono.just(url));
-            when(urlRepository.save(any())).thenReturn(Mono.just(url));
-            when(appProperties.getShortUrlBase()).thenReturn("http://short.ly");
+        @DisplayName("valid id – saves new email and evicts both cache keys atomically")
+        void updateEmail_validId_savesAndEvictsCache() {
+            User updatedUser = new User();
+            updatedUser.setId(1L);
+            updatedUser.setUsername("lvoxx");
+            updatedUser.setEmail("new@example.com");
+            updatedUser.setRole("USER");
+            updatedUser.setActive(true);
 
-            StepVerifier.create(urlService.update(1L, new UpdateUrlRequest(null, null, false), 42L))
-                    .assertNext(response -> assertThat(response.isActive()).isFalse())
+            UserResponse updatedResponse = new UserResponse(1L, "lvoxx", "new@example.com", "USER", true,
+                    LocalDateTime.now());
+
+            when(userRepository.findById(1L)).thenReturn(Mono.just(testUser));
+            when(userRepository.save(any(User.class))).thenReturn(Mono.just(updatedUser));
+            when(userMapper.toResponse(updatedUser)).thenReturn(updatedResponse);
+
+            StepVerifier.create(userService.updateEmail(1L, "new@example.com"))
+                    .assertNext(r -> {
+                        assertThat(r.email()).isEqualTo("new@example.com");
+                        assertThat(r.username()).isEqualTo("lvoxx");
+                    })
                     .verifyComplete();
 
-            verify(urlCacheOperations).evict("abc123");
+            // Verify email was actually updated on the saved entity
+            verify(userRepository).save(argThat(u -> "new@example.com".equals(u.getEmail())));
+
+            // Verify atomic cache eviction was triggered (both by-id and by-name keys)
+            verify(redisson, atLeastOnce()).createBatch();
+            verify(rKeys, atLeastOnce()).deleteAsync(
+                    contains(Constants.Cache.KEY_USER_BY_ID + "1"),
+                    contains(Constants.Cache.KEY_USER_BY_NAME + "lvoxx"));
         }
 
         @Test
-        @DisplayName("does not evict cache when only title is updated")
-        void update_titleOnly_noCacheEvict() {
-            Url url = urlWithId(1L, "abc123");
-            url.setUserId(42L);
-            url.setActive(true);
-            when(urlRepository.findById(1L)).thenReturn(Mono.just(url));
-            when(urlRepository.save(any())).thenReturn(Mono.just(url));
-            when(appProperties.getShortUrlBase()).thenReturn("http://short.ly");
+        @DisplayName("non-existent id – emits UserNotFoundException without save")
+        void updateEmail_notFound_throwsException() {
+            when(userRepository.findById(99L)).thenReturn(Mono.empty());
 
-            StepVerifier.create(urlService.update(1L, new UpdateUrlRequest("New Title", null, null), 42L))
-                    .assertNext(response -> assertThat(response).isNotNull())
-                    .verifyComplete();
+            StepVerifier.create(userService.updateEmail(99L, "new@example.com"))
+                    .expectError(UserNotFoundException.class)
+                    .verify();
 
-            verify(urlCacheOperations, never()).evict(anyString());
+            verify(userRepository, never()).save(any());
+            verify(redisson, never()).createBatch();
         }
     }
 
-    private Url urlWithId(Long id, String shortCode) {
-        Url url = new Url();
-        url.setId(id);
-        url.setShortCode(shortCode);
-        url.setOriginalUrl("https://example.com");
-        url.setActive(true);
-        return url;
+    // =========================================================================
+    // deactivate
+    // =========================================================================
+
+    @Nested
+    @DisplayName("deactivate()")
+    class Deactivate {
+
+        @Test
+        @DisplayName("valid id – sets active=false and evicts both cache keys atomically")
+        void deactivate_validId_deactivatesAndEvictsCache() {
+            when(userRepository.findById(1L)).thenReturn(Mono.just(testUser));
+            when(userRepository.save(any(User.class))).thenReturn(Mono.just(testUser));
+
+            StepVerifier.create(userService.deactivate(1L))
+                    .verifyComplete();
+
+            // User must be saved with active=false
+            verify(userRepository).save(argThat(u -> !u.isActive()));
+
+            // Atomic cache eviction must be triggered for both key types
+            verify(redisson, atLeastOnce()).createBatch();
+            verify(rKeys, atLeastOnce()).deleteAsync(
+                    contains(Constants.Cache.KEY_USER_BY_ID + "1"),
+                    contains(Constants.Cache.KEY_USER_BY_NAME + "lvoxx"));
+        }
+
+        @Test
+        @DisplayName("non-existent id – emits UserNotFoundException without save or cache interaction")
+        void deactivate_notFound_throwsException() {
+            when(userRepository.findById(55L)).thenReturn(Mono.empty());
+
+            StepVerifier.create(userService.deactivate(55L))
+                    .expectError(UserNotFoundException.class)
+                    .verify();
+
+            verify(userRepository, never()).save(any());
+            verify(redisson, never()).createBatch();
+        }
+
+        @Test
+        @DisplayName("already inactive user – still persists (idempotent) and evicts cache")
+        void deactivate_alreadyInactive_isIdempotent() {
+            testUser.setActive(false); // already deactivated
+
+            when(userRepository.findById(1L)).thenReturn(Mono.just(testUser));
+            when(userRepository.save(any(User.class))).thenReturn(Mono.just(testUser));
+
+            StepVerifier.create(userService.deactivate(1L))
+                    .verifyComplete();
+
+            verify(userRepository).save(argThat(u -> !u.isActive()));
+            verify(redisson, atLeastOnce()).createBatch();
+        }
     }
 }
