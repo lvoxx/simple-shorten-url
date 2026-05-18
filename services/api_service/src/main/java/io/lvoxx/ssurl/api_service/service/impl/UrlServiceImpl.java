@@ -33,6 +33,27 @@ import io.lvoxx.ssurl.common.util.NumberToBytes;
 import io.seruco.encoding.base62.Base62;
 import reactor.core.publisher.Mono;
 
+/**
+ * URL shortening service with layered caching:
+ *
+ * <ol>
+ * <li><b>Bloom filter</b> – pre-filters non-existent short codes before any
+ * cache or DB lookup (false-positive rate is acceptable; the DB is the
+ * authoritative gate).</li>
+ * <li><b>Hot-path short-code cache</b> – {@link UrlCacheOperations} manages a
+ * dedicated Redis hash/string structure for the redirect endpoint. This
+ * path is intentionally kept outside Spring Cache so that it can be
+ * accessed without AOP proxying overhead.</li>
+ * <li><b>Spring {@code @Cacheable} / {@code @CacheEvict}</b> – applied to
+ * {@code getByShortCode} (full {@link UrlResponse}) and all mutating
+ * operations.</li>
+ * <li><b>Redisson atomic batches</b> – every cache mutation that accompanies a
+ * DB write is wrapped in {@link AbstractCacheableService#atomicCacheWrite}
+ * or {@link AbstractCacheableService#atomicCacheEvict} so the Redis
+ * commands are sent as a single MULTI/EXEC block <em>after</em> the DB
+ * transaction commits.</li>
+ * </ol>
+ */
 @Service
 @Transactional
 public class UrlServiceImpl extends AbstractCacheableService implements UrlService {
