@@ -1,4 +1,4 @@
-package io.lvoxx.ssurl.api_service.service;
+package io.lvoxx.ssurl.api_service.service.impl;
 
 import io.lvoxx.ssurl.api_service.cache.UrlCacheOperations;
 import io.lvoxx.ssurl.api_service.config.AppProperties;

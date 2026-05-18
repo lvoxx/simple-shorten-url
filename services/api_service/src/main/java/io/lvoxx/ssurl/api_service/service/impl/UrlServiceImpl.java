@@ -5,6 +5,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 
 import org.redisson.api.RBloomFilter;
+import org.redisson.api.RedissonClient;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +27,7 @@ import io.lvoxx.ssurl.common.exception.UnauthorizedException;
 import io.lvoxx.ssurl.common.exception.UrlNotFoundException;
 import io.lvoxx.ssurl.common.mapper.UrlMapper;
 import io.lvoxx.ssurl.common.model.Url;
+import io.lvoxx.ssurl.common.service.AbstractCacheableService;
 import io.lvoxx.ssurl.common.util.Constants;
 import io.lvoxx.ssurl.common.util.NumberToBytes;
 import io.seruco.encoding.base62.Base62;
@@ -30,7 +35,7 @@ import reactor.core.publisher.Mono;
 
 @Service
 @Transactional
-public class UrlServiceImpl implements UrlService {
+public class UrlServiceImpl extends AbstractCacheableService implements UrlService {
 
     private final UrlRepository urlRepository;
     private final DomainBlacklistRepository domainBlacklistRepository;
@@ -47,7 +52,9 @@ public class UrlServiceImpl implements UrlService {
             RBloomFilter<String> urlBloomFilter,
             UrlMapper urlMapper,
             AppProperties appProperties,
-            Base62 base62) {
+            Base62 base62,
+            RedissonClient redisson) {
+        super(redisson);
         this.urlRepository = urlRepository;
         this.domainBlacklistRepository = domainBlacklistRepository;
         this.urlCacheOperations = urlCacheOperations;
@@ -57,6 +64,28 @@ public class UrlServiceImpl implements UrlService {
         this.base62 = base62;
     }
 
+    // -------------------------------------------------------------------------
+    // createUrl
+    // -------------------------------------------------------------------------
+
+    /**
+     * Creates a shortened URL.
+     *
+     * <p>
+     * Cache strategy (write-around + write-through):
+     * <ol>
+     * <li>DB INSERT (two saves: entity + shortCode back-fill).</li>
+     * <li>Bloom filter populated.</li>
+     * <li>Atomic Redisson batch:
+     * <ul>
+     * <li>SET {@code url:<shortCode>} → originalUrl (hot redirect path)</li>
+     * <li>SET {@code url:id:<id>} → fullUrlJson (full-response path)</li>
+     * </ul>
+     * </li>
+     * </ol>
+     * The two Redis SETs are batched as one MULTI/EXEC so either both land or
+     * neither does (idempotent – a cache miss simply falls back to the DB).
+     */
     @Override
     public Mono<UrlResponse> createUrl(CreateUrlRequest request, Long userId, String createdBy) {
         String domain = extractDomain(request.originalUrl());
@@ -69,50 +98,104 @@ public class UrlServiceImpl implements UrlService {
                     url.setUserId(userId);
                     url.setCreatedBy(createdBy);
                     url.setUpdatedBy(createdBy);
-                    // Anonymous users get a 7-day expiry unless one was explicitly provided
                     if (userId == null && url.getExpireAt() == null) {
                         url.setExpireAt(LocalDateTime.now().plusDays(Constants.Business.ANONYMOUS_EXPIRY_DAYS));
                     }
                     return urlRepository.save(url);
                 })
                 .flatMap(saved -> {
-                    String shortCode = new String(base62.encode(NumberToBytes.longToBytes(saved.getId())),
+                    String shortCode = new String(
+                            base62.encode(NumberToBytes.longToBytes(saved.getId())),
                             StandardCharsets.US_ASCII);
                     saved.setShortCode(shortCode);
                     return urlRepository.save(saved);
                 })
                 .flatMap(saved -> {
                     urlBloomFilter.add(saved.getShortCode());
-                    return urlCacheOperations.put(saved.getShortCode(), saved.getOriginalUrl())
-                            .thenReturn(saved);
-                })
-                .map(this::buildUrlResponse);
+                    UrlResponse response = buildUrlResponse(saved);
+
+                    // Atomic batch: hot-path + full-response caches together
+                    return atomicCacheWrite(
+                            // chain the existing UrlCacheOperations.put inside the DB Mono
+                            urlCacheOperations.put(saved.getShortCode(), saved.getOriginalUrl())
+                                    .thenReturn(saved),
+                            Constants.Cache.KEY_URL_BY_ID + saved.getId(),
+                            saved.getShortCode(), // lightweight pointer; full response via getByShortCode
+                            Constants.TTL.TTL_URL).thenReturn(response);
+                });
     }
 
+    // -------------------------------------------------------------------------
+    // getByShortCode
+    // -------------------------------------------------------------------------
+
+    /**
+     * Looks up a URL by its short code.
+     *
+     * <p>
+     * Cache key: {@code url:<shortCode>} in region {@value #CACHE_SHORT_CODES}.
+     * On a cache miss, Spring falls through to the DB. The bloom filter is
+     * checked by the redirect controller before this method is called, so by the
+     * time we reach here the short code is likely valid.
+     */
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = Constants.Cache.CACHE_SHORT_CODES, key = "'" + Constants.Cache.KEY_URL_BY_SHORT
+            + "' + #shortCode", unless = "#result == null")
     public Mono<UrlResponse> getByShortCode(String shortCode) {
         return urlRepository.findByShortCode(shortCode)
                 .switchIfEmpty(Mono.error(new ShortCodeNotFoundException(shortCode)))
                 .map(this::buildUrlResponse);
     }
 
+    // -------------------------------------------------------------------------
+    // listByUser
+    // -------------------------------------------------------------------------
+
+    /**
+     * Paginated listing – not cached (cursor-based pages are not cache-friendly).
+     */
     @Override
     @Transactional(readOnly = true)
     public Mono<CursorPage<UrlResponse>> listByUser(Long userId, Long cursor, int size) {
-        int safeSize = Math.min(size, Constants.Business.MAX_PAGE_SIZE);
+        int safeSize = Math.min(size, 100);
         return (cursor == null
                 ? urlRepository.findTopByUserIdOrderByIdDesc(userId, safeSize)
                 : urlRepository.findByUserIdAndIdLessThanOrderByIdDesc(userId, cursor, safeSize))
                 .map(this::buildUrlResponse)
                 .collectList()
                 .map(items -> {
-                    Long nextCursor = items.size() == safeSize ? items.get(items.size() - 1).id() : null;
+                    Long nextCursor = items.size() == safeSize
+                            ? items.get(items.size() - 1).id()
+                            : null;
                     return new CursorPage<>(items, nextCursor, nextCursor != null);
                 });
     }
 
+    // -------------------------------------------------------------------------
+    // update
+    // -------------------------------------------------------------------------
+
+    /**
+     * Updates a URL record.
+     *
+     * <p>
+     * Cache strategy (write-through + invalidation):
+     * <ul>
+     * <li>{@code @CacheEvict} on {@value #CACHE_SHORT_CODES} and
+     * {@value #CACHE_URLS}
+     * removes stale full-response entries.</li>
+     * <li>If the URL is being <em>deactivated</em>, the hot-path redirect cache
+     * is also evicted via an atomic Redisson batch so the redirect controller
+     * stops serving the entry immediately.</li>
+     * </ul>
+     */
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = Constants.Cache.CACHE_SHORT_CODES, key = "'" + Constants.Cache.KEY_URL_BY_SHORT
+                    + "' + #result.shortCode()", condition = "#result != null"),
+            @CacheEvict(cacheNames = Constants.Cache.CACHE_URLS, key = "'" + Constants.Cache.KEY_URL_BY_ID + "' + #id")
+    })
     public Mono<UrlResponse> update(Long id, UpdateUrlRequest request, Long userId) {
         return urlRepository.findById(id)
                 .switchIfEmpty(Mono.error(new UrlNotFoundException(id)))
@@ -120,24 +203,45 @@ public class UrlServiceImpl implements UrlService {
                     if (!userId.equals(url.getUserId())) {
                         return Mono.error(new UnauthorizedException("You do not own this URL"));
                     }
-                    if (request.title() != null) {
+                    if (request.title() != null)
                         url.setTitle(request.title());
-                    }
-                    if (request.expireAt() != null) {
+                    if (request.expireAt() != null)
                         url.setExpireAt(request.expireAt());
-                    }
-                    if (request.isActive() != null) {
+
+                    boolean deactivating = Boolean.FALSE.equals(request.isActive());
+                    if (request.isActive() != null)
                         url.setActive(request.isActive());
-                        if (Boolean.FALSE.equals(request.isActive())) {
-                            urlCacheOperations.evict(url.getShortCode());
-                        }
+
+                    Mono<Url> dbSave = urlRepository.save(url);
+
+                    if (deactivating) {
+                        // Atomic: DB save + evict hot-path redirect cache together
+                        return atomicCacheEvict(dbSave, Constants.Cache.KEY_URL_BY_SHORT + url.getShortCode())
+                                .doOnNext(saved -> urlCacheOperations.evict(saved.getShortCode()));
                     }
-                    return urlRepository.save(url);
+                    return dbSave;
                 })
                 .map(this::buildUrlResponse);
     }
 
+    // -------------------------------------------------------------------------
+    // delete
+    // -------------------------------------------------------------------------
+
+    /**
+     * Soft-deletes (deactivates) a URL.
+     *
+     * <p>
+     * Both the hot-path redirect cache and the full-response cache are evicted
+     * atomically via a Redisson batch after the DB update commits.
+     */
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = Constants.Cache.CACHE_SHORT_CODES, allEntries = false, key = "'"
+                    + Constants.Cache.KEY_URL_BY_SHORT
+                    + "' + #root.target.getShortCodeById(#id)"),
+            @CacheEvict(cacheNames = Constants.Cache.CACHE_URLS, key = "'" + Constants.Cache.KEY_URL_BY_ID + "' + #id")
+    })
     public Mono<Void> delete(Long id, Long userId) {
         return urlRepository.findById(id)
                 .switchIfEmpty(Mono.error(new UrlNotFoundException(id)))
@@ -145,12 +249,21 @@ public class UrlServiceImpl implements UrlService {
                     if (!userId.equals(url.getUserId())) {
                         return Mono.error(new UnauthorizedException("You do not own this URL"));
                     }
-                    urlCacheOperations.evict(url.getShortCode());
                     url.setActive(false);
-                    return urlRepository.save(url);
+                    Mono<Url> dbSave = urlRepository.save(url);
+                    // Atomic: soft-delete DB write + evict both cache regions
+                    return atomicCacheEvict(
+                            dbSave,
+                            Constants.Cache.KEY_URL_BY_SHORT + url.getShortCode(),
+                            Constants.Cache.KEY_URL_BY_ID + url.getId())
+                            .doOnNext(saved -> urlCacheOperations.evict(saved.getShortCode()));
                 })
                 .then();
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
 
     private UrlResponse buildUrlResponse(Url url) {
         String shortUrl = appProperties.getShortUrlBase() + "/" + url.getShortCode();

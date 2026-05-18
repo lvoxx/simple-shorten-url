@@ -66,7 +66,7 @@ public final class Constants {
         // -------------------------------------------------------------------------
 
         public static final Duration TTL_USER = Duration.ofMinutes(30);
-        public static final Duration TTSSSL_URL = Duration.ofMinutes(10);
+        public static final Duration TTL_URL = Duration.ofMinutes(10);
         public static final Duration TTL_SHORT_CODE = Duration.ofHours(24);
         public static final Duration TTL_REFRESH_TOKEN = Duration.ofDays(30);
     }
