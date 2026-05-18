@@ -1,5 +1,7 @@
 package io.lvoxx.ssurl.common.util;
 
+import java.time.Duration;
+
 public final class Constants {
 
     private Constants() {
@@ -15,6 +17,58 @@ public final class Constants {
         public static final String BLOOM_FILTER = "bloom:urls";
         public static final int BLOOM_CAPACITY = 10_000_000;
         public static final double BLOOM_FPR = 0.01;
+
+        // -------------------------------------------------------------------------
+        // Cache region names (must match spring.cache.cache-names in application.yml)
+        // -------------------------------------------------------------------------
+
+        /**
+         * Spring Cache region for
+         * {@link io.lvoxx.ssurl.common.dto.response.UserResponse} objects.
+         */
+        public static final String CACHE_USERS = "users";
+
+        /**
+         * Spring Cache region for full
+         * {@link io.lvoxx.ssurl.common.dto.response.UrlResponse} objects.
+         */
+        public static final String CACHE_URLS = "urls";
+
+        /** Spring Cache region for the hot redirect path: shortCode → originalUrl. */
+        public static final String CACHE_SHORT_CODES = "shortCodes";
+
+        /** Spring Cache region that tracks live refresh-token presence flags. */
+        public static final String CACHE_REFRESH_TOKENS = "refreshTokens";
+
+        // -------------------------------------------------------------------------
+        // Cache key templates
+        // -------------------------------------------------------------------------
+
+        /** {@code user:id:<id>} */
+        public static final String KEY_USER_BY_ID = "user:id:";
+
+        /** {@code user:name:<username>} */
+        public static final String KEY_USER_BY_NAME = "user:name:";
+
+        /** {@code url:<shortCode>} – raw redirect target */
+        public static final String KEY_URL_BY_SHORT = "url:";
+
+        /** {@code url:id:<id>} – full UrlResponse */
+        public static final String KEY_URL_BY_ID = "url:id:";
+
+        /** {@code auth:rt:<token>} – refresh-token presence flag */
+        public static final String KEY_AUTH_RT = "auth:rt:";
+    }
+
+    public static final class TTL {
+        // -------------------------------------------------------------------------
+        // Default TTLs
+        // -------------------------------------------------------------------------
+
+        public static final Duration TTL_USER = Duration.ofMinutes(30);
+        public static final Duration TTSSSL_URL = Duration.ofMinutes(10);
+        public static final Duration TTL_SHORT_CODE = Duration.ofHours(24);
+        public static final Duration TTL_REFRESH_TOKEN = Duration.ofDays(30);
     }
 
     // ─────────────────────────────────────────────────────────────────
