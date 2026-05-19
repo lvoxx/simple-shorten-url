@@ -3,6 +3,7 @@ package io.lvoxx.ssurl.api_service.service.impl;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RedissonClient;
@@ -115,13 +116,20 @@ public class UrlServiceImpl extends AbstractCacheableService implements UrlServi
                     if (Boolean.TRUE.equals(blacklisted)) {
                         return Mono.error(new DomainBlacklistedException(domain));
                     }
+
                     Url url = urlMapper.toDomain(request);
                     url.setUserId(userId);
                     url.setCreatedBy(createdBy);
                     url.setUpdatedBy(createdBy);
-                    if (userId == null && url.getExpireAt() == null) {
-                        url.setExpireAt(LocalDateTime.now().plusDays(Constants.Business.ANONYMOUS_EXPIRY_DAYS));
+
+                    LocalDateTime expireAt;
+                    if (userId == null || url.getExpireAt() == null) {
+                        expireAt = LocalDateTime.now().plusDays(Constants.Business.ANONYMOUS_EXPIRY_DAYS);
+                    } else {
+                        expireAt = request.expireAt();
                     }
+                    url.setExpireAt(expireAt);
+
                     return urlRepository.save(url);
                 })
                 .flatMap(saved -> {
@@ -224,10 +232,8 @@ public class UrlServiceImpl extends AbstractCacheableService implements UrlServi
                     if (!userId.equals(url.getUserId())) {
                         return Mono.error(new UnauthorizedException("You do not own this URL"));
                     }
-                    if (request.title() != null)
-                        url.setTitle(request.title());
-                    if (request.expireAt() != null)
-                        url.setExpireAt(request.expireAt());
+                    url.setTitle(Optional.ofNullable(request.title()).orElse("My Title"));
+                    url.setExpireAt(request.expireAt());
 
                     boolean deactivating = Boolean.FALSE.equals(request.isActive());
                     if (request.isActive() != null)
