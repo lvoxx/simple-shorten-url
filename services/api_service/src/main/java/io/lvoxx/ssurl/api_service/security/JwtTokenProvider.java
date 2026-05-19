@@ -1,31 +1,37 @@
 package io.lvoxx.ssurl.api_service.security;
 
+import java.util.Date;
+
+import javax.crypto.SecretKey;
+
+import org.springframework.stereotype.Component;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import io.lvoxx.ssurl.api_service.properties.JwtProperties;
 import io.lvoxx.ssurl.common.util.Constants;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
-import javax.crypto.SecretKey;
-import java.util.Date;
+import jakarta.annotation.PostConstruct;
 
 @Component
 public class JwtTokenProvider {
 
-    private final SecretKey secretKey;
-    private final long accessExpiryMs;
-    private final long refreshExpiryMs;
+    private SecretKey secretKey;
+    private long accessExpiryMs;
+    private long refreshExpiryMs;
+    private final JwtProperties jwtProperties;
 
-    public JwtTokenProvider(
-            @Value("${app.jwt.secret}") String secret,
-            @Value("${app.jwt.access-expiry:900}") long accessExpirySec,
-            @Value("${app.jwt.refresh-expiry:604800}") long refreshExpirySec) {
-        this.secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
-        this.accessExpiryMs = accessExpirySec * 1000;
-        this.refreshExpiryMs = refreshExpirySec * 1000;
+    public JwtTokenProvider(JwtProperties jwtProperties) {
+        this.jwtProperties = jwtProperties;
+    }
+
+    @PostConstruct
+    public void init() {
+        this.secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtProperties.getSecret()));
+        this.accessExpiryMs = jwtProperties.getAccessExpiry() * 1000L;
+        this.refreshExpiryMs = jwtProperties.getRefreshExpiry() * 1000L;
     }
 
     public String createAccessToken(String username, String role) {
