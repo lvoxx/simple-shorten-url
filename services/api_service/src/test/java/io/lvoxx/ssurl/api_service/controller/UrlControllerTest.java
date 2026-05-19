@@ -19,7 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import io.lvoxx.ssurl.api_service.repository.UserRepository;
+import io.lvoxx.ssurl.api_service.service.ContextUserService;
 import io.lvoxx.ssurl.api_service.service.UrlService;
 import io.lvoxx.ssurl.common.dto.request.CreateUrlRequest;
 import io.lvoxx.ssurl.common.dto.response.CursorPage;
@@ -31,8 +31,10 @@ import reactor.test.StepVerifier;
 @ExtendWith(MockitoExtension.class)
 class UrlControllerTest {
 
-    @Mock private UrlService urlService;
-    @Mock private UserRepository userRepository;
+    @Mock
+    private UrlService urlService;
+    @Mock
+    private ContextUserService contextUserService;
 
     private UrlController urlController;
 
@@ -42,7 +44,7 @@ class UrlControllerTest {
 
     @BeforeEach
     void setUp() {
-        urlController = new UrlController(urlService, userRepository);
+        urlController = new UrlController(urlService, contextUserService);
     }
 
     @Nested
