@@ -4,21 +4,19 @@ import java.time.ZoneId;
 import java.util.List;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 import io.lvoxx.ssurl.analytics_worker.service.AnalyticsService;
 import io.lvoxx.ssurl.avro.AnalyticsEvent;
-import io.lvoxx.ssurl.common.util.Constants;
 import io.lvoxx.ssurl.common.model.Analytics;
+import io.lvoxx.ssurl.common.util.Constants;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Component
 public class AnalyticsEventListener {
-
-    private static final Logger log = LoggerFactory.getLogger(AnalyticsEventListener.class);
 
     private final int maxBatchSize;
     private final AnalyticsService analyticsService;
