@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 describe("GitHub Pages Redirect Logic", () => {
-  const basePath = "/vue-url-link-shortner/";
+  const basePath = "/";
   const originalOrigin = "https://johnrusu.github.io";
 
   beforeEach(() => {
@@ -36,7 +36,7 @@ describe("GitHub Pages Redirect Logic", () => {
     }
 
     expect(mockReplace).toHaveBeenCalledWith(
-      "https://johnrusu.github.io/vue-url-link-shortner/?code=abc123#access_token=xyz"
+      "https://johnrusu.github.io/?code=abc123#access_token=xyz"
     );
   });
 
@@ -67,7 +67,7 @@ describe("GitHub Pages Redirect Logic", () => {
     }
 
     expect(mockReplace).toHaveBeenCalledWith(
-      "https://johnrusu.github.io/vue-url-link-shortner/"
+      "https://johnrusu.github.io/"
     );
   });
 
@@ -156,7 +156,7 @@ describe("GitHub Pages Redirect Logic", () => {
     }
 
     expect(mockReplace).toHaveBeenCalledWith(
-      "https://johnrusu.github.io/vue-url-link-shortner/?code=AUTH_CODE&state=STATE_VALUE"
+      "https://johnrusu.github.io/?code=AUTH_CODE&state=STATE_VALUE"
     );
   });
 
@@ -187,7 +187,7 @@ describe("GitHub Pages Redirect Logic", () => {
     }
 
     expect(mockReplace).toHaveBeenCalledWith(
-      "https://johnrusu.github.io/vue-url-link-shortner/?param1=value1&param2=value2#section-1"
+      "https://johnrusu.github.io/?param1=value1&param2=value2#section-1"
     );
   });
 });

@@ -20,7 +20,7 @@ const appMetadata = {
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: "/vue-url-link-shortner/",
+  base: "/",
   plugins: [
     vue(),
     vueJsx(),
