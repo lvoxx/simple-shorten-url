@@ -1,18 +1,14 @@
-export type {
-  UserResponse,
-  UrlResponse,
-  AuthResponse,
-  CursorPage,
-  PageResponse,
-  AnalyticsResponse,
-  DomainBlacklistResponse,
-} from './models'
+import type { User } from "@auth0/auth0-vue";
 
-export type {
-  CreateUrlRequest,
-  UpdateUrlRequest,
-  LoginRequest,
-  RegisterRequest,
-} from './requests'
+type TUser = User;
 
-export { API_BASE, API_PATHS } from './api'
+type TLink = {
+  id?: string;
+  _id?: string;
+  url: string;
+  shortCode: string;
+  createdAt: string;
+  clicks: number;
+};
+
+export type { TLink, TUser };

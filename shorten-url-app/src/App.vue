@@ -1,85 +1,95 @@
-<script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
-</script>
-
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+  <v-app>
+    <v-main>
+      <AppHeader
+        :user="user"
+        @logout="handleLogout"
+        v-if="isAuthenticated && user"
+      />
+      <v-container
+        fluid
+        class="flex flex-col flex-1 h-full wrapper-v-container"
+      >
+        <div
+          class="w-[200px] flex items-center justify-center mx-auto h-full"
+          v-if="isLoading"
+        >
+          <AnimationGenerator :jsonData="loadingAnimation" />
+        </div>
 
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
+        <div v-else-if="error" class="flex items-center justify-center h-full">
+          <div class="text-center max-w-md p-6">
+            <div class="text-3xl font-bold mb-2">
+              {{ LABELS.ERROR_TITLE }}
+            </div>
+            <div class="text-lg mb-2">
+              {{ LABELS.ERROR_MESSAGE }}
+            </div>
+            <div class="text-sm">{{ error?.message }}</div>
+            <v-alert
+              icon="mdi-information-outline"
+              :title="LABELS.FIX_AUTH_ISSUE"
+              :text="`${LABELS.REMOVE_STORAGE}
+                      ${LABELS.RELOGIN}`"
+              type="info"
+              class="text-left mt-4"
+            ></v-alert>
+          </div>
+        </div>
 
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
-  </header>
-
-  <RouterView />
+        <div
+          v-else-if="!isAuthenticated"
+          class="flex flex-col gap-4 text-center max-w-2xl w-full mx-auto items-center justify-center h-full"
+        >
+          <div class="mb-3">
+            <img
+              src="/favicons/logo.png"
+              alt="App Icon"
+              width="114"
+              height="114"
+            />
+          </div>
+          <h1 class="text-4xl font-bold">
+            {{ LABELS.WELCOME_TITLE }}
+          </h1>
+          <p class="text-xl">{{ APP.DESCRIPTION }}</p>
+          <div class="mt-4">
+            <v-btn @click="handleLogin" size="large" prepend-icon="mdi-login">
+              {{ LABELS.BUTTON_LOGIN_TITLE }}
+            </v-btn>
+          </div>
+        </div>
+        <router-view v-else />
+      </v-container>
+    </v-main>
+  </v-app>
 </template>
 
-<style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
-}
+<script setup lang="ts">
+import { useAuth0 } from "@auth0/auth0-vue";
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
+// constants
+import { APP, LABELS } from "@/constants";
 
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
+const { isAuthenticated, isLoading, error, user, logout, loginWithRedirect } =
+  useAuth0();
 
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
+// components
+import AppHeader from "@/components/AppHeader.vue";
+import AnimationGenerator from "@/components/AnimationGenerator.vue";
 
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
+// json animations
+import loadingAnimation from "@/assets/animations/loading.json";
 
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
+const handleLogout = () => {
+  logout({
+    logoutParams: {
+      returnTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
+    },
+  });
+};
 
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
-}
-</style>
+const handleLogin = () => {
+  loginWithRedirect();
+};
+</script>

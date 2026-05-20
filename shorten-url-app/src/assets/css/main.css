@@ -1,0 +1,160 @@
+@import "tailwindcss";
+@import "./fontawesome/index.css";
+@import "vuetify/styles";
+
+@font-face {
+  font-family: "Roboto-Bold";
+  src: url("../fonts/roboto/Roboto-Bold/Roboto-Bold.eot");
+  src:
+    url("../fonts/roboto/Roboto-Bold/Roboto-Bold.eot?#iefix")
+      format("embedded-opentype"),
+    url("../fonts/roboto/Roboto-Bold/Roboto-Bold.woff2") format("woff2"),
+    url("../fonts/roboto/Roboto-Bold/Roboto-Bold.woff") format("woff"),
+    url("../fonts/roboto/Roboto-Bold/Roboto-Bold.svg#Roboto-Bold") format("svg");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Roboto-Thin";
+  src: url("../fonts/roboto/Roboto-Thin/Roboto-Thin.eot");
+  src:
+    url("../fonts/roboto/Roboto-Thin/Roboto-Thin.eot?#iefix")
+      format("embedded-opentype"),
+    url("../fonts/roboto/Roboto-Thin/Roboto-Thin.woff2") format("woff2"),
+    url("../fonts/roboto/Roboto-Thin/Roboto-Thin.woff") format("woff"),
+    url("../fonts/roboto/Roboto-Thin/Roboto-Thin.svg#Roboto-Thin") format("svg");
+  font-style: normal;
+}
+@font-face {
+  font-family: "Roboto-Regular";
+  src: url("../fonts/roboto/Roboto-Regular/Roboto-Regular.eot");
+  src:
+    url("../fonts/roboto/Roboto-Regular/Roboto-Regular.eot?#iefix")
+      format("embedded-opentype"),
+    url("../fonts/roboto/Roboto-Regular/Roboto-Regular.woff2") format("woff2"),
+    url("../fonts/roboto/Roboto-Regular/Roboto-Regular.woff") format("woff"),
+    url("../fonts/roboto/Roboto-Regular/Roboto-Regular.svg#Roboto-Regular")
+      format("svg");
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "RobotoCondensed-Bold";
+  src: url("../fonts/roboto/RobotoCondensed-Bold/RobotoCondensed-Bold.eot");
+  src:
+    url("../fonts/roboto/RobotoCondensed-Bold/RobotoCondensed-Bold.eot?#iefix")
+      format("embedded-opentype"),
+    url("../fonts/roboto/RobotoCondensed-Bold/RobotoCondensed-Bold.woff2")
+      format("woff2"),
+    url("../fonts/roboto/RobotoCondensed-Bold/RobotoCondensed-Bold.woff")
+      format("woff"),
+    url("../fonts/roboto/RobotoCondensed-Bold/RobotoCondensed-Bold.svg#RobotoCondensed-Bold")
+      format("svg");
+  font-weight: bold;
+  font-style: normal;
+}
+@font-face {
+  font-family: "RobotoCondensed-Light";
+  src: url("../fonts/roboto/RobotoCondensed-Light/RobotoCondensed-Light.eot");
+  src:
+    url("../fonts/roboto/RobotoCondensed-Light/RobotoCondensed-Light.eot?#iefix")
+      format("embedded-opentype"),
+    url("../fonts/roboto/RobotoCondensed-Light/RobotoCondensed-Light.woff2")
+      format("woff2"),
+    url("../fonts/roboto/RobotoCondensed-Light/RobotoCondensed-Light.woff")
+      format("woff"),
+    url("../fonts/roboto/RobotoCondensed-Light/RobotoCondensed-Light.svg#RobotoCondensed-Light")
+      format("svg");
+  font-style: normal;
+}
+@font-face {
+  font-family: "RobotoCondensed-Regular";
+  src: url("../fonts/roboto/RobotoCondensed-Regular/RobotoCondensed-Regular.eot");
+  src:
+    url("../fonts/roboto/RobotoCondensed-Regular/RobotoCondensed-Regular.eot?#iefix")
+      format("embedded-opentype"),
+    url("../fonts/roboto/RobotoCondensed-Regular/RobotoCondensed-Regular.woff2")
+      format("woff2"),
+    url("../fonts/roboto/RobotoCondensed-Regular/RobotoCondensed-Regular.woff")
+      format("woff"),
+    url("../fonts/roboto/RobotoCondensed-Regular/RobotoCondensed-Regular.svg#RobotoCondensed-Regular")
+      format("svg");
+  font-style: normal;
+}
+
+html,
+body {
+  @apply w-full m-0 p-0 font-sans relative  text-black;
+  font-family: "Roboto-Regular", font-sans;
+  height: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+#app {
+  @apply w-full;
+  min-height: 100vh;
+  height: 100%;
+}
+
+.v-application {
+  @apply w-full;
+  height: 100%;
+}
+
+.v-application__wrap {
+  min-height: 100vh;
+  height: 100%;
+}
+
+.v-application__wrap > .v-main {
+  @apply flex flex-col flex-1 h-full;
+}
+
+.wrapper-v-container {
+  @apply flex flex-col flex-1 relative;
+  height: calc(100% - 64px);
+  overflow: auto;
+}
+
+/* Custom Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: linear-gradient(90deg, #0f0f0f 0%, #1a1a1a 100%);
+  border-radius: 10px;
+  margin: 2px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #2d2d2d 0%, #1a1a1a 100%);
+  border-radius: 10px;
+  border: 2px solid #0a0a0a;
+  transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #3d3d3d 0%, #2a2a2a 100%);
+  border-color: #2d2d2d;
+  box-shadow: 0 0 10px rgba(45, 45, 45, 0.5);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(180deg, #4d4d4d 0%, #3a3a3a 100%);
+}
+
+/* Firefox Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2d2d2d #0f0f0f;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
