@@ -107,19 +107,20 @@ import AnimationGenerator from "@/components/AnimationGenerator.vue";
 // json animations
 import loadingAnimation from "@/assets/animations/loading.json";
 
-// types
-import type { TLink } from "@/types";
+// api & services
+import { createLinksApi } from "@/api/links";
+import { linkService } from "@/services/linkService";
+import type { LinkDisplayItem } from "@/services/linkService";
 
 // constants
-import { routes, LINKS_MAPPING, LABELS } from "@/constants";
+import { LINKS_MAPPING, LABELS } from "@/constants";
 import { isArrayNotEmpty } from "@/utils";
 
 import { useRoute, useRouter } from "vue-router";
 
-const links = ref<TLink[]>([]);
+const links = ref<LinkDisplayItem[]>([]);
 const linksIds = ref<Array<string>>([]);
 const loading = ref(false);
-const token = ref("");
 const error = ref<Error | null>(null);
 
 // state
@@ -129,16 +130,52 @@ const linksStore = useLinksStore();
 const route = useRoute();
 const router = useRouter();
 
-const viewDetails = (item: TLink) => {
-  // redirect to details page or open modal
+const { getAccessTokenSilently } = useAuth0();
+const getLinksApi = () => createLinksApi(getAccessTokenSilently);
+
+const viewDetails = (item: LinkDisplayItem) => {
   router.push({ path: `/links/${item.id}` });
 };
 
-const deleteLink = (item: TLink) => {
+const deleteLink = (item: LinkDisplayItem) => {
   if (!confirm(LABELS.CONFIRM_DELETE_MESSAGE)) {
     return;
   }
-  deleteLinkById(item.id as string);
+  deleteLinkById(item.id);
+};
+
+const getLinks = async () => {
+  loading.value = true;
+  linksStore.setLoading(true);
+  error.value = null;
+  try {
+    const apiLinks = await getLinksApi().fetchAll();
+    linksStore.setLinks(apiLinks);
+    links.value = linkService.transformAllForDisplay(apiLinks);
+    linksIds.value = linkService.getDisplayKeys(links.value);
+    linksStore.setLoading(false);
+  } catch (err) {
+    error.value = err as Error;
+    console.error("Error fetching links:", err);
+  } finally {
+    loading.value = false;
+    linksStore.setLoading(false);
+  }
+};
+
+const deleteLinkById = async (id: number) => {
+  loading.value = true;
+  error.value = null;
+  try {
+    await getLinksApi().delete(id);
+    await getLinks();
+  } catch (err) {
+    console.error("Failed to delete link", err);
+    error.value = err as Error;
+  } finally {
+    loading.value = false;
+    error.value = null;
+  }
 };
 
 const deleteAllLinks = async () => {
@@ -148,16 +185,7 @@ const deleteAllLinks = async () => {
   loading.value = true;
   error.value = null;
   try {
-    const response = await fetch(`${routes.api.deleteAllLinks.url}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token.value}`,
-      },
-    });
-    if (!response.ok) {
-      error.value = new Error("Failed to delete all links");
-      throw new Error("Failed to delete all links");
-    }
+    await getLinksApi().deleteAll();
     console.log("All links deleted successfully");
     await getLinks();
   } catch (err) {
@@ -169,80 +197,11 @@ const deleteAllLinks = async () => {
   }
 };
 
-const getLinks = async () => {
-  // Fetch links from API using the token
-  loading.value = true;
-  linksStore.setLoading(true);
-  error.value = null;
-  try {
-    const response = await fetch(routes.api.getAllLinks.url, {
-      headers: {
-        Authorization: `Bearer ${token.value}`,
-      },
-    });
-
-    if (response.ok) {
-      loading.value = false;
-      linksStore.setLoading(false);
-      error.value = null;
-      const apiLinks: TLink[] = await response.json();
-      links.value = apiLinks.map((link: TLink) => ({
-        id: link._id,
-        url: link.url,
-        shortCode: link.shortCode,
-        createdAt: new Date(link.createdAt).toLocaleString(),
-        clicks: link.clicks,
-      }));
-      if (isArrayNotEmpty(links.value) && links.value[0]) {
-        linksIds.value = Object.keys(links.value[0]);
-      }
-      linksStore.setLinks(links.value);
-      linksStore.setLoading(false);
-    } else {
-      throw new Error("Failed to fetch links");
-    }
-  } catch (err: unknown) {
-    error.value = err as Error;
-    console.error("Error fetching links:", err);
-  } finally {
-    loading.value = false;
-    linksStore.setLoading(false);
-  }
-};
-
-const deleteLinkById = async (id: string) => {
-  loading.value = true;
-  error.value = null;
-  try {
-    const response = await fetch(`${routes.api.deleteLink.url(id)}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token.value}`,
-      },
-    });
-
-    if (response.ok) {
-      await getLinks();
-    } else {
-      error.value = new Error("Failed to delete link");
-      throw new Error("Failed to delete link");
-    }
-  } catch (err) {
-    console.error("Failed to delete link", err);
-    error.value = err as Error;
-  } finally {
-    loading.value = false;
-    error.value = null;
-  }
-};
-
 watch(
   () => route.path,
   async () => {
     console.log("Route changed, fetching links again");
-    const { getAccessTokenSilently } = useAuth0();
     try {
-      token.value = await getAccessTokenSilently();
       await getLinks();
     } catch (err) {
       console.error("Error getting access token:", err);

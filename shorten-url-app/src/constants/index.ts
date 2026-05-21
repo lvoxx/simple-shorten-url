@@ -92,7 +92,7 @@ const ADD_LINK_TABS = {
 };
 
 const LINKS_MAPPING = {
-  _id: "ID",
+  id: "ID",
   url: "Original URL",
   shortCode: "Short Code",
   createdAt: "Created At",

@@ -139,11 +139,15 @@ import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
 
 // constants
-import { routes, LABELS, ADD_LINK_TABS } from "@/constants";
-import { isNilOrEmpty } from "@/utils";
+import { LABELS, ADD_LINK_TABS } from "@/constants";
+
+// api & services
+import { createLinksApi } from "@/api/links";
+import { linkService } from "@/services/linkService";
 
 // Auth0
 const { getAccessTokenSilently } = useAuth0();
+const linksApi = () => createLinksApi(getAccessTokenSilently);
 
 // Router
 const router = useRouter();
@@ -188,19 +192,12 @@ const linkImportStatus = ref({
 // Validation rules
 const urlRules = [
   (v: string) => !!v || LABELS.URL_REQUIRED,
-  (v: string) => {
-    try {
-      new URL(v);
-      return true;
-    } catch {
-      return LABELS.INVALID_URL;
-    }
-  },
+  (v: string) => linkService.validateUrl(v) || LABELS.INVALID_URL,
 ];
 
 const shortCodeRules = [
   (v: string) =>
-    !v || /^[a-zA-Z0-9-_]+$/.test(v) || LABELS.SHORT_CODE_PATTERN_ERROR,
+    !v || linkService.validateShortCode(v) || LABELS.SHORT_CODE_PATTERN_ERROR,
   (v: string) => !v || v.length <= 50 || LABELS.SHORT_CODE_LENGTH_ERROR,
 ];
 
@@ -215,94 +212,62 @@ const handleSubmit = async () => {
     display: false,
   };
   try {
-    const token = await getAccessTokenSilently();
-    const response = await fetch(routes.api.createLink.url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        url: formData.value.url,
-        ...(formData.value.shortCode && {
-          shortCode: formData.value.shortCode,
-        }),
-      }),
+    await linksApi().create({
+      originalUrl: formData.value.url,
     });
-
-    if (response.ok) {
-      console.log(LABELS.LINK_CREATED);
-      emit("linkCreated");
-      linkCreationStatus.value = {
-        success: true,
-        message: LABELS.LINK_CREATED,
-        display: true,
-      };
-      handleReset();
-    } else {
-      const error = await response.json();
-      console.error(LABELS.FAILED_CREATE_LINK, error);
-      alert(error?.message || LABELS.FAILED_CREATE_LINK);
-      linkCreationStatus.value = {
-        success: false,
-        message: error?.message || LABELS.FAILED_CREATE_LINK,
-        display: true,
-      };
-    }
-  } catch (error) {
-    console.error("Error creating link:", error);
-    alert(LABELS.ERROR_CREATING_LINK);
+    console.log(LABELS.LINK_CREATED);
+    emit("linkCreated");
+    linkCreationStatus.value = {
+      success: true,
+      message: LABELS.LINK_CREATED,
+      display: true,
+    };
+    handleReset();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : LABELS.FAILED_CREATE_LINK;
+    console.error(LABELS.FAILED_CREATE_LINK, err);
+    alert(message);
+    linkCreationStatus.value = {
+      success: false,
+      message,
+      display: true,
+    };
   } finally {
     loading.value = false;
   }
 };
 
 const handleLinksImported = async (linksContent: object) => {
-  // handle api call to import links
-  if (!isNilOrEmpty(linksContent)) {
-    loading.value = true;
+  if (!linksContent) return;
+
+  loading.value = true;
+  linkImportStatus.value = {
+    success: false,
+    message: null,
+    display: false,
+  };
+  try {
+    await linksApi().importLinks(linksContent);
+    const totalLinks = Object.keys(linksContent).length;
+    console.log(LABELS.IMPORT_SUCCESS(totalLinks));
+    emit("linksImported");
+    linkImportStatus.value = {
+      success: true,
+      message: LABELS.IMPORT_SUCCESS(totalLinks),
+      display: true,
+    };
+    handleReset();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : LABELS.IMPORT_FAILED;
+    console.error(LABELS.IMPORT_FAILED, err);
+    alert(message);
     linkImportStatus.value = {
       success: false,
-      message: null,
-      display: false,
+      message,
+      display: true,
     };
-    try {
-      const token = await getAccessTokenSilently();
-      const response = await fetch(routes.api.addLinks.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ links: linksContent }),
-      });
-
-      if (response.ok) {
-        const totalLinks = Object.keys(linksContent).length;
-        console.log(LABELS.IMPORT_SUCCESS(totalLinks));
-        emit("linksImported");
-        linkImportStatus.value = {
-          success: true,
-          message: LABELS.IMPORT_SUCCESS(totalLinks),
-          display: true,
-        };
-        handleReset();
-      } else {
-        const error = await response.json();
-        console.error(LABELS.IMPORT_FAILED, error);
-        alert(error?.message || LABELS.IMPORT_FAILED);
-        linkImportStatus.value = {
-          success: false,
-          message: error?.message || LABELS.IMPORT_FAILED,
-          display: true,
-        };
-      }
-    } catch (error) {
-      console.error("Error importing links:", error);
-      alert(LABELS.IMPORT_FAILED);
-    } finally {
-      loading.value = false;
-    }
+  } finally {
+    loading.value = false;
   }
 };
 

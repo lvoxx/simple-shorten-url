@@ -4,7 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useAuth0 } from "@auth0/auth0-vue";
 
 // constants
-import { routes, LABELS } from "@/constants";
+import { LABELS } from "@/constants";
 
 // state
 import { useLinksStore } from "@/store/links";
@@ -15,28 +15,19 @@ import loadingAnimation from "@/assets/animations/loading.json";
 // components
 import AnimationGenerator from "@/components/AnimationGenerator.vue";
 
-// utils
-import { isArrayNotEmpty } from "@/utils";
-
-// Types
-interface TLink {
-  _id: string;
-  url: string;
-  shortCode: string;
-  createdAt: string;
-  clicks: number;
-  userId?: string;
-}
+// api & services
+import { createLinksApi } from "@/api/links";
+import type { UrlResponse } from "@/types";
 
 const route = useRoute();
 const router = useRouter();
 const { getAccessTokenSilently } = useAuth0();
+const linksApi = () => createLinksApi(getAccessTokenSilently);
 
-const link = ref<TLink | null>(null);
+const link = ref<UrlResponse | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
 
-// state
 const linksStore = useLinksStore();
 
 const linkId = computed(() => route.params.linkId as string);
@@ -51,32 +42,19 @@ const getLinkDetails = async () => {
   error.value = null;
 
   const linksFromStore = linksStore.links;
-  if (isArrayNotEmpty(linksFromStore)) {
-    const existingLink = linksFromStore.find((l) => l.id === linkId.value);
+  if (linksFromStore.length > 0) {
+    const existingLink = linksFromStore.find((l) => l.id === Number(linkId.value));
     if (existingLink) {
-      link.value = existingLink as TLink;
+      link.value = existingLink;
       loading.value = false;
-      error.value = null;
       return;
     }
   }
 
   try {
-    const token = await getAccessTokenSilently();
-    const response = await fetch(routes.api.getLinkById.url(linkId.value), {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.ok) {
-      link.value = await response.json();
-    } else {
-      error.value = LABELS.FAILED_LOAD_LINK;
-      console.error("Failed to fetch link details");
-    }
+    link.value = await linksApi().fetchById(linkId.value);
   } catch (err) {
-    error.value = LABELS.ERROR_LOADING_LINK;
+    error.value = LABELS.FAILED_LOAD_LINK;
     console.error("Error fetching link details:", err);
   } finally {
     loading.value = false;
@@ -104,20 +82,9 @@ const deleteLink = async () => {
   if (!confirm(LABELS.CONFIRM_DELETE_LINK)) return;
 
   try {
-    const token = await getAccessTokenSilently();
-    const response = await fetch(routes.api.deleteLink.url(linkId.value), {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (response.ok) {
-      alert(LABELS.LINK_DELETED);
-      goBack();
-    } else {
-      alert(LABELS.FAILED_DELETE_LINK);
-    }
+    await linksApi().delete(linkId.value);
+    alert(LABELS.LINK_DELETED);
+    goBack();
   } catch (err) {
     console.error("Error deleting link:", err);
     alert(LABELS.ERROR_DELETING_LINK);
@@ -181,11 +148,11 @@ onMounted(() => {
                       </v-list-item-title>
                       <v-list-item-subtitle class="text-wrap">
                         <a
-                          :href="link.url"
+                          :href="link.originalUrl"
                           target="_blank"
                           class="text-primary"
                         >
-                          {{ link.url }}
+                          {{ link.originalUrl }}
                         </a>
                       </v-list-item-subtitle>
                     </v-list-item>
@@ -243,7 +210,7 @@ onMounted(() => {
                       </v-list-item-title>
                       <v-list-item-subtitle>
                         <span class="text-h5 text-primary">{{
-                          link.clicks
+                          link.clickCount
                         }}</span>
                       </v-list-item-subtitle>
                     </v-list-item>
