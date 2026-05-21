@@ -1,4 +1,4 @@
-import { computed, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuth0 } from "@auth0/auth0-vue";
 
@@ -11,7 +11,7 @@ export function useRedirectLink() {
   const store = useLinksStore();
 
   const linkId = computed(() => route.params.linkId as string);
-  const error = computed(() => store.error);
+  const error = ref<string | null>(null);
 
   const redirect = async () => {
     error.value = null;

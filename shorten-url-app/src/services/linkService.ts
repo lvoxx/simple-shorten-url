@@ -21,7 +21,7 @@ const transformAllForDisplay = (links: UrlResponse[]): LinkDisplayItem[] =>
 
 const getDisplayKeys = (items: LinkDisplayItem[]): string[] => {
   if (items.length === 0) return [];
-  return Object.keys(items[0]);
+  return Object.keys(items[0]!);
 };
 
 const validateUrl = (url: string): boolean => {

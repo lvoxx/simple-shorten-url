@@ -14,7 +14,7 @@ export function useLinkAnalytics() {
 
   const link = ref<UrlResponse | null>(null);
   const loading = computed(() => store.loading);
-  const error = computed(() => store.error);
+  const error = ref<string | null>(null);
 
   const linkId = computed(() => route.params.linkId as string);
 

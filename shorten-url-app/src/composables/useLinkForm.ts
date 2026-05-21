@@ -11,7 +11,7 @@ interface LinkFormData {
 
 interface FormStatus {
   success: boolean;
-  message: string | null;
+  message?: string;
   display: boolean;
 }
 
@@ -37,13 +37,11 @@ export function useLinkForm() {
 
   const creationStatus = ref<FormStatus>({
     success: false,
-    message: null,
     display: false,
   });
 
   const importStatus = ref<FormStatus>({
     success: false,
-    message: null,
     display: false,
   });
 
@@ -52,8 +50,8 @@ export function useLinkForm() {
   const reset = () => {
     formData.value = { url: "", shortCode: "" };
     formRef.value?.reset();
-    creationStatus.value = { success: false, message: null, display: false };
-    importStatus.value = { success: false, message: null, display: false };
+    creationStatus.value = { success: false, display: false };
+    importStatus.value = { success: false, display: false };
   };
 
   const setCreationSuccess = (message: string) => {
