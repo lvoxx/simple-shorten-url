@@ -1,14 +1,18 @@
-import type { User } from "@auth0/auth0-vue";
+import type { User as Auth0User } from "@auth0/auth0-vue";
 
-type TUser = User;
+export type TUser = Auth0User;
 
-type TLink = {
-  id?: string;
-  _id?: string;
-  url: string;
-  shortCode: string;
-  createdAt: string;
-  clicks: number;
-};
+export type {
+  UserResponse,
+  UrlResponse,
+  AuthResponse,
+  PageResponse,
+  CursorPage,
+} from "./response";
 
-export type { TLink, TUser };
+export type {
+  CreateUrlRequest,
+  UpdateUrlRequest,
+  LoginRequest,
+  RegisterRequest,
+} from "./request";
