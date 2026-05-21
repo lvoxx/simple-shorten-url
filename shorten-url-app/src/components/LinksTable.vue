@@ -25,30 +25,19 @@
             {{ LABELS.LINKS_TABLE_TITLE }}
           </h1>
           <AddLinkForm
-            @linkCreated="getLinks"
-            @linksImported="getLinks"
-            v-if="!isArrayNotEmpty(links)"
+            @linkCreated="fetchLinks"
+            @linksImported="fetchLinks"
+            v-if="!hasLinks"
           />
           <v-card :loading="loading" class="w-full" v-else>
             <v-data-table
               hover
               class="elevation-0"
               :items-per-page="10"
-              :headers="[
-                ...linksIds.map((id) => ({
-                  title: (LINKS_MAPPING as any)[id] || id,
-                  key: id,
-                })),
-                ...(isArrayNotEmpty(links)
-                  ? [{ title: LABELS.ACTIONS, key: 'actions', sortable: false }]
-                  : []),
-              ]"
+              :headers="tableHeaders"
               :items="links"
             >
-              <template
-                v-slot:[`item.actions`]="{ item }"
-                v-if="isArrayNotEmpty(links)"
-              >
+              <template v-slot:[`item.actions`]="{ item }">
                 <div class="flex gap-2">
                   <v-btn-group variant="outlined" divided density="compact">
                     <v-btn
@@ -63,7 +52,7 @@
                     <v-btn
                       icon
                       color="error"
-                      @click="deleteLink(item)"
+                      @click="confirmDelete(item)"
                       density="default"
                       size="small"
                     >
@@ -74,13 +63,13 @@
               </template>
             </v-data-table>
             <v-card-actions>
-              <div v-if="isArrayNotEmpty(links)">
+              <div v-if="hasLinks">
                 <div class="d-flex pa-2">
                   <v-btn
                     color="error"
                     variant="outlined"
                     prepend-icon="mdi-delete-sweep"
-                    @click="deleteAllLinks"
+                    @click="confirmDeleteAll"
                   >
                     {{ LABELS.DELETE_ALL_LINKS }}
                   </v-btn>
@@ -93,120 +82,59 @@
     </div>
   </v-container>
 </template>
+
 <script setup lang="ts">
-import { ref, watch } from "vue";
-import { useAuth0 } from "@auth0/auth0-vue";
+import { computed, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
-// state
-import { useLinksStore } from "@/store/links";
+import { useLinks } from "@/composables/useLinks";
+import { LABELS, LINKS_MAPPING } from "@/constants";
 
-// components
 import AddLinkForm from "@/components/AddLinkForm.vue";
 import AnimationGenerator from "@/components/AnimationGenerator.vue";
 
-// json animations
 import loadingAnimation from "@/assets/animations/loading.json";
 
-// api & services
-import { createLinksApi } from "@/api/links";
-import { linkService } from "@/services/linkService";
-import type { LinkDisplayItem } from "@/services/linkService";
-
-// constants
-import { LINKS_MAPPING, LABELS } from "@/constants";
-import { isArrayNotEmpty } from "@/utils";
-
-import { useRoute, useRouter } from "vue-router";
-
-const links = ref<LinkDisplayItem[]>([]);
-const linksIds = ref<Array<string>>([]);
-const loading = ref(false);
-const error = ref<Error | null>(null);
-
-// state
-const linksStore = useLinksStore();
-
-// route
 const route = useRoute();
 const router = useRouter();
 
-const { getAccessTokenSilently } = useAuth0();
-const getLinksApi = () => createLinksApi(getAccessTokenSilently);
+const {
+  links,
+  displayKeys,
+  hasLinks,
+  loading,
+  error,
+  fetch: fetchLinks,
+  remove: removeLink,
+  removeAll: removeAllLinks,
+} = useLinks();
 
-const viewDetails = (item: LinkDisplayItem) => {
+const tableHeaders = computed(() => [
+  ...displayKeys.value.map((key) => ({
+    title: (LINKS_MAPPING as Record<string, string>)[key] || key,
+    key,
+  })),
+  { title: LABELS.ACTIONS, key: "actions", sortable: false },
+]);
+
+const viewDetails = (item: { id: number }) => {
   router.push({ path: `/links/${item.id}` });
 };
 
-const deleteLink = (item: LinkDisplayItem) => {
-  if (!confirm(LABELS.CONFIRM_DELETE_MESSAGE)) {
-    return;
-  }
-  deleteLinkById(item.id);
+const confirmDelete = (item: { id: number }) => {
+  if (!confirm(LABELS.CONFIRM_DELETE_MESSAGE)) return;
+  removeLink(item.id);
 };
 
-const getLinks = async () => {
-  loading.value = true;
-  linksStore.setLoading(true);
-  error.value = null;
-  try {
-    const apiLinks = await getLinksApi().fetchAll();
-    linksStore.setLinks(apiLinks);
-    links.value = linkService.transformAllForDisplay(apiLinks);
-    linksIds.value = linkService.getDisplayKeys(links.value);
-    linksStore.setLoading(false);
-  } catch (err) {
-    error.value = err as Error;
-    console.error("Error fetching links:", err);
-  } finally {
-    loading.value = false;
-    linksStore.setLoading(false);
-  }
-};
-
-const deleteLinkById = async (id: number) => {
-  loading.value = true;
-  error.value = null;
-  try {
-    await getLinksApi().delete(id);
-    await getLinks();
-  } catch (err) {
-    console.error("Failed to delete link", err);
-    error.value = err as Error;
-  } finally {
-    loading.value = false;
-    error.value = null;
-  }
-};
-
-const deleteAllLinks = async () => {
-  if (!confirm(LABELS.DELETE_ALL(links.value.length))) {
-    return;
-  }
-  loading.value = true;
-  error.value = null;
-  try {
-    await getLinksApi().deleteAll();
-    console.log("All links deleted successfully");
-    await getLinks();
-  } catch (err) {
-    console.error("Failed to delete all links", err);
-    error.value = err as Error;
-  } finally {
-    loading.value = false;
-    error.value = null;
-  }
+const confirmDeleteAll = () => {
+  if (!confirm(LABELS.DELETE_ALL(links.value.length))) return;
+  removeAllLinks();
 };
 
 watch(
   () => route.path,
-  async () => {
-    console.log("Route changed, fetching links again");
-    try {
-      await getLinks();
-    } catch (err) {
-      console.error("Error getting access token:", err);
-      error.value = err as Error;
-    }
+  () => {
+    fetchLinks();
   },
   { immediate: true },
 );

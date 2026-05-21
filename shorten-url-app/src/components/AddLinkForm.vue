@@ -71,7 +71,7 @@
                     <v-btn
                       class="ml-4"
                       :loading="loading"
-                      :disabled="!valid"
+                      :disabled="!canSubmit"
                       @click="handleSubmit"
                       prepend-icon="mdi-plus"
                     >
@@ -81,20 +81,17 @@
                 </v-card-actions>
               </v-card>
               <div
-                v-if="
-                  !isNilOrEmpty(linkCreationStatus) &&
-                  linkCreationStatus.display
-                "
+                v-if="creationStatus.display"
                 class="w-full pa-4"
               >
                 <v-alert
                   :icon="
-                    linkCreationStatus.success
+                    creationStatus.success
                       ? 'mdi-check-circle'
                       : 'mdi-alert-circle-outline'
                   "
-                  :text="linkCreationStatus.message as string"
-                  :type="linkCreationStatus.success ? 'success' : 'error'"
+                  :text="creationStatus.message"
+                  :type="creationStatus.success ? 'success' : 'error'"
                 />
               </div>
             </v-sheet>
@@ -106,23 +103,21 @@
                   <p class="text-center mb-4">
                     {{ LABELS.IMPORT_LINKS_INSTRUCTIONS }}
                   </p>
-                  <ImportLinks @linksImported="handleLinksImported" />
+                  <ImportLinks @linksImported="handleImport" />
                 </v-card-text>
               </v-card>
               <div
-                v-if="
-                  !isNilOrEmpty(linkImportStatus) && linkImportStatus.display
-                "
+                v-if="importStatus.display"
                 class="w-full px-8 pb-4"
               >
                 <v-alert
                   :icon="
-                    linkImportStatus.success
+                    importStatus.success
                       ? 'mdi-check-circle'
                       : 'mdi-alert-circle-outline'
                   "
-                  :text="linkImportStatus.message as string"
-                  :type="linkImportStatus.success ? 'success' : 'error'"
+                  :text="importStatus.message"
+                  :type="importStatus.success ? 'success' : 'error'"
                 />
               </div>
             </v-sheet>
@@ -135,140 +130,74 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { useAuth0 } from "@auth0/auth0-vue";
 import { useRouter } from "vue-router";
 
-// constants
+import { useLinks } from "@/composables/useLinks";
+import { useLinkForm } from "@/composables/useLinkForm";
 import { LABELS, ADD_LINK_TABS } from "@/constants";
-import { isNilOrEmpty } from "@/utils";
 
-// api & services
-import { createLinksApi } from "@/api/links";
-import { linkService } from "@/services/linkService";
-
-// Auth0
-const { getAccessTokenSilently } = useAuth0();
-const linksApi = () => createLinksApi(getAccessTokenSilently);
-
-// Router
-const router = useRouter();
-
-// components
 import ImportLinks from "@/components/ImportLinks.vue";
 
-// ref
+const router = useRouter();
+
+const {
+  loading,
+  create: createLink,
+  importLinks: importLinksAction,
+} = useLinks();
+
+const {
+  formData,
+  valid,
+  formRef,
+  urlRules,
+  shortCodeRules,
+  creationStatus,
+  importStatus,
+  canSubmit,
+  reset,
+  setCreationSuccess,
+  setCreationError,
+  setImportSuccess,
+  setImportError,
+  buildCreateRequest,
+} = useLinkForm();
+
 const tabRef = ref(ADD_LINK_TABS.ADD_LINK as string);
 
-// Types
-interface LinkFormData {
-  url: string;
-  shortCode: string;
-}
-
-// Emits
 const emit = defineEmits<{
   linkCreated: [];
   linksImported: [];
 }>();
 
-// State
-const formRef = ref();
-const valid = ref(false);
-const loading = ref(false);
-const formData = ref<LinkFormData>({
-  url: "",
-  shortCode: "",
-});
-const linkCreationStatus = ref({
-  success: false,
-  message: null as string | null,
-  display: false,
-});
-const linkImportStatus = ref({
-  success: false,
-  message: null as string | null,
-  display: false,
-});
-
-// Validation rules
-const urlRules = [
-  (v: string) => !!v || LABELS.URL_REQUIRED,
-  (v: string) => linkService.validateUrl(v) || LABELS.INVALID_URL,
-];
-
-const shortCodeRules = [
-  (v: string) =>
-    !v || linkService.validateShortCode(v) || LABELS.SHORT_CODE_PATTERN_ERROR,
-  (v: string) => !v || v.length <= 50 || LABELS.SHORT_CODE_LENGTH_ERROR,
-];
-
-// Methods
 const handleSubmit = async () => {
-  if (!valid.value) return;
+  if (!canSubmit.value) return;
 
-  loading.value = true;
-  linkCreationStatus.value = {
-    success: false,
-    message: null,
-    display: false,
-  };
   try {
-    await linksApi().create({
-      originalUrl: formData.value.url,
-    });
-    console.log(LABELS.LINK_CREATED);
+    await createLink(buildCreateRequest());
+    setCreationSuccess(LABELS.LINK_CREATED);
     emit("linkCreated");
-    linkCreationStatus.value = {
-      success: true,
-      message: LABELS.LINK_CREATED,
-      display: true,
-    };
     handleReset();
   } catch (err) {
     const message = err instanceof Error ? err.message : LABELS.FAILED_CREATE_LINK;
-    console.error(LABELS.FAILED_CREATE_LINK, err);
+    setCreationError(message);
     alert(message);
-    linkCreationStatus.value = {
-      success: false,
-      message,
-      display: true,
-    };
-  } finally {
-    loading.value = false;
   }
 };
 
-const handleLinksImported = async (linksContent: object) => {
+const handleImport = async (linksContent: object) => {
   if (!linksContent) return;
 
-  loading.value = true;
-  linkImportStatus.value = {
-    success: false,
-    message: null,
-    display: false,
-  };
   try {
-    await linksApi().importLinks(linksContent);
+    await importLinksAction(linksContent);
     const totalLinks = Object.keys(linksContent).length;
-    console.log(LABELS.IMPORT_SUCCESS(totalLinks));
+    setImportSuccess(LABELS.IMPORT_SUCCESS(totalLinks));
     emit("linksImported");
-    linkImportStatus.value = {
-      success: true,
-      message: LABELS.IMPORT_SUCCESS(totalLinks),
-      display: true,
-    };
     handleReset();
   } catch (err) {
     const message = err instanceof Error ? err.message : LABELS.IMPORT_FAILED;
-    console.error(LABELS.IMPORT_FAILED, err);
+    setImportError(message);
     alert(message);
-    linkImportStatus.value = {
-      success: false,
-      message,
-      display: true,
-    };
-  } finally {
-    loading.value = false;
   }
 };
 
@@ -277,10 +206,6 @@ const goBack = () => {
 };
 
 const handleReset = () => {
-  formData.value = {
-    url: "",
-    shortCode: "",
-  };
-  formRef.value?.reset();
+  reset();
 };
 </script>

@@ -121,7 +121,7 @@ import { isNilOrEmpty, checkImage } from "@/utils";
 import { APP, LABELS, PLACEHOLDER_IMAGE } from "@/constants";
 
 // state
-import { useLinksStore } from "@/store/links";
+import { useLinksStore } from "@/stores/links";
 
 // types
 import type { TUser } from "@/types";

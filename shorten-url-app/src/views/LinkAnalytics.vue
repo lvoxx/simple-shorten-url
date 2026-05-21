@@ -1,99 +1,21 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { useAuth0 } from "@auth0/auth0-vue";
-
-// constants
+import { useLinkAnalytics } from "@/composables/useLinkAnalytics";
 import { LABELS } from "@/constants";
 
-// state
-import { useLinksStore } from "@/store/links";
-
-// loading animation
 import loadingAnimation from "@/assets/animations/loading.json";
 
-// components
 import AnimationGenerator from "@/components/AnimationGenerator.vue";
 
-// api & services
-import { createLinksApi } from "@/api/links";
-import type { UrlResponse } from "@/types";
-
-const route = useRoute();
-const router = useRouter();
-const { getAccessTokenSilently } = useAuth0();
-const linksApi = () => createLinksApi(getAccessTokenSilently);
-
-const link = ref<UrlResponse | null>(null);
-const loading = ref(true);
-const error = ref<string | null>(null);
-
-const linksStore = useLinksStore();
-
-const linkId = computed(() => route.params.linkId as string);
-const shortUrl = computed(() =>
-  link.value
-    ? `${window.location.origin}${import.meta.env.BASE_URL}${link.value.shortCode}`
-    : "",
-);
-
-const getLinkDetails = async () => {
-  loading.value = true;
-  error.value = null;
-
-  const linksFromStore = linksStore.links;
-  if (linksFromStore.length > 0) {
-    const existingLink = linksFromStore.find((l) => l.id === Number(linkId.value));
-    if (existingLink) {
-      link.value = existingLink;
-      loading.value = false;
-      return;
-    }
-  }
-
-  try {
-    link.value = await linksApi().fetchById(linkId.value);
-  } catch (err) {
-    error.value = LABELS.FAILED_LOAD_LINK;
-    console.error("Error fetching link details:", err);
-  } finally {
-    loading.value = false;
-  }
-};
-
-const copyToClipboard = async () => {
-  try {
-    await navigator.clipboard.writeText(shortUrl.value);
-  } catch (err) {
-    console.error("Failed to copy:", err);
-    alert(LABELS.FAILED_COPY_URL);
-  }
-};
-
-const openNewWindow = (url: string) => {
-  window.open(url, "_blank");
-};
-
-const goBack = () => {
-  router.push({ path: "/" });
-};
-
-const deleteLink = async () => {
-  if (!confirm(LABELS.CONFIRM_DELETE_LINK)) return;
-
-  try {
-    await linksApi().delete(linkId.value);
-    alert(LABELS.LINK_DELETED);
-    goBack();
-  } catch (err) {
-    console.error("Error deleting link:", err);
-    alert(LABELS.ERROR_DELETING_LINK);
-  }
-};
-
-onMounted(() => {
-  getLinkDetails();
-});
+const {
+  link,
+  loading,
+  error,
+  shortUrl,
+  deleteLink,
+  copyToClipboard,
+  openInNewWindow,
+  goBack,
+} = useLinkAnalytics();
 </script>
 
 <template>
@@ -180,7 +102,7 @@ onMounted(() => {
                             icon="mdi-open-in-new"
                             size="x-small"
                             variant="text"
-                            @click="openNewWindow(shortUrl)"
+                            @click="openInNewWindow(shortUrl)"
                           ></v-btn>
                         </div>
                       </v-list-item-subtitle>
