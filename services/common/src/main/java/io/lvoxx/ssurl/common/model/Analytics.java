@@ -33,6 +33,19 @@ public class Analytics extends BaseCAtEntity {
 
     private String referer;
 
-    private String country;
+    // ---- IP2Location data (denormalized) ----
 
+    private String countryCode;
+
+    private String countryName;
+
+    private String region;
+
+    private String city;
+
+    private Double latitude;
+
+    private Double longitude;
+
+    private String isp;
 }

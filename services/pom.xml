@@ -52,21 +52,22 @@
     <properties>
         <java.version>25</java.version>
         <!-- Third-party versions not managed by Spring Boot BOM -->
-        <mapstruct.version>1.6.3</mapstruct.version>
-        <lombok.version>1.18.42</lombok.version>
-        <base62.version>0.1.3</base62.version>
         <avro.version>1.12.1</avro.version>
-        <kafka-avro-serializer.version>8.1.1</kafka-avro-serializer.version>
-        <springdoc-openapi.version>3.0.2</springdoc-openapi.version>
-        <redisson-spring.version>4.2.0</redisson-spring.version>
+        <base62.version>0.1.3</base62.version>
+        <ip2location.version>8.13.0</ip2location.version>
         <jjwt.version>0.12.6</jjwt.version>
-        <testcontainers.version>1.21.4</testcontainers.version>
-        <testcontainers.redis.version>2.2.2</testcontainers.redis.version>
-        <spring-boot.version>4.0.6</spring-boot.version>
-        <reactor-test.version>3.8.5</reactor-test.version>
-        <logback-classic.version>1.5.20</logback-classic.version>
+        <kafka-avro-serializer.version>8.1.1</kafka-avro-serializer.version>
         <logback-access.version>2.0.6</logback-access.version>
+        <logback-classic.version>1.5.20</logback-classic.version>
         <logback-encoder.version>9.0</logback-encoder.version>
+        <lombok.version>1.18.42</lombok.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <reactor-test.version>3.8.5</reactor-test.version>
+        <redisson-spring.version>4.2.0</redisson-spring.version>
+        <spring-boot.version>4.0.6</spring-boot.version>
+        <springdoc-openapi.version>3.0.2</springdoc-openapi.version>
+        <testcontainers.redis.version>2.2.2</testcontainers.redis.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
 
     </properties>
 
@@ -136,6 +137,13 @@
                 <artifactId>mapstruct-processor</artifactId>
                 <version>${mapstruct.version}</version>
                 <scope>provided</scope>
+            </dependency>
+
+            <!-- IP2Location -->
+            <dependency>
+                <groupId>com.ip2location</groupId>
+                <artifactId>ip2location-java</artifactId>
+                <version>${ip2location.version}</version>
             </dependency>
 
             <!-- Base62 -->

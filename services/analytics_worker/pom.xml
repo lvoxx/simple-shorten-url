@@ -47,6 +47,12 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- IP2Location -->
+        <dependency>
+            <groupId>com.ip2location</groupId>
+            <artifactId>ip2location-java</artifactId>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>io.lvoxx.ssurl</groupId>

@@ -31,3 +31,6 @@ logging:
         ssurl: DEBUG
 server:
   port: '8082'
+
+ip2location:
+  bin-path: data/IP2LOCATION-LITE-DB11.BIN
