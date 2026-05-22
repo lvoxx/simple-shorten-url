@@ -76,6 +76,7 @@
         <module>api_service</module>
         <module>redirect_service</module>
         <module>analytics_worker</module>
+        <module>dashboard</module>
     </modules>
 
     <dependencyManagement>
