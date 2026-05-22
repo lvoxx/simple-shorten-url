@@ -1,1 +1,24 @@
-spring.application.name=dashboard
+server:
+  port: 8080
+
+spring:
+  application:
+    name: dashboard
+
+# ── Actuator ─────────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# ── Logging ──────────────────────────────────────────────────────────────────
+logging:
+  level:
+    root: INFO
+    io.lvoxx.ssurl.dashboard: DEBUG
+    org.springframework.kafka: INFO
+    org.springframework.web.socket: INFO
