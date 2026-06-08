@@ -11,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import io.lvoxx.ssurl.api_service.config.AppProperties;
 import io.lvoxx.ssurl.api_service.repository.RefreshTokenRepository;
 import io.lvoxx.ssurl.api_service.repository.UserRepository;
 import io.lvoxx.ssurl.api_service.security.JwtTokenProvider;
@@ -27,6 +28,7 @@ import io.lvoxx.ssurl.common.model.RefreshToken;
 import io.lvoxx.ssurl.common.model.User;
 import io.lvoxx.ssurl.common.service.AbstractCacheableService;
 import io.lvoxx.ssurl.common.util.Constants;
+import io.lvoxx.ssurl.common.util.TokenHasher;
 import reactor.core.publisher.Mono;
 
 /**
@@ -56,6 +58,7 @@ public class AuthServiceImpl extends AbstractCacheableService implements AuthSer
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final AppProperties appProperties;
 
     public AuthServiceImpl(
             UserRepository userRepository,
@@ -63,6 +66,7 @@ public class AuthServiceImpl extends AbstractCacheableService implements AuthSer
             JwtTokenProvider jwtTokenProvider,
             PasswordEncoder passwordEncoder,
             UserMapper userMapper,
+            AppProperties appProperties,
             RedissonClient redisson) {
         super(redisson);
         this.userRepository = userRepository;
@@ -70,6 +74,7 @@ public class AuthServiceImpl extends AbstractCacheableService implements AuthSer
         this.jwtTokenProvider = jwtTokenProvider;
         this.passwordEncoder = passwordEncoder;
         this.userMapper = userMapper;
+        this.appProperties = appProperties;
     }
 
     // -------------------------------------------------------------------------
@@ -135,10 +140,13 @@ public class AuthServiceImpl extends AbstractCacheableService implements AuthSer
 
                     String accessToken = jwtTokenProvider.createAccessToken(user.getUsername(), user.getRole());
                     String rtValue = jwtTokenProvider.createRefreshToken(user.getUsername());
+                    // Persist/cache only the digest; the raw token lives solely in the
+                    // client cookie so a DB/Redis read cannot replay sessions.
+                    String rtHash = TokenHasher.sha256Hex(rtValue);
 
                     RefreshToken refreshToken = new RefreshToken();
                     refreshToken.setUserId(user.getId());
-                    refreshToken.setToken(rtValue);
+                    refreshToken.setToken(rtHash);
 
                     refreshToken.setExpiresAt(LocalDateTime.now().plus(Constants.TTL.TTL_REFRESH_TOKEN));
 
@@ -149,7 +157,7 @@ public class AuthServiceImpl extends AbstractCacheableService implements AuthSer
                     // After DB succeeds → atomically write RT presence flag to Redis
                     return atomicCacheWrite(
                             dbWrite,
-                            Constants.Cache.KEY_AUTH_RT + rtValue,
+                            Constants.Cache.KEY_AUTH_RT + rtHash,
                             "1",
                             Constants.TTL.TTL_REFRESH_TOKEN).map(saved -> {
                                 setRefreshTokenCookie(response, rtValue);
@@ -182,18 +190,24 @@ public class AuthServiceImpl extends AbstractCacheableService implements AuthSer
     @Cacheable(cacheNames = Constants.Cache.CACHE_REFRESH_TOKENS, key = "'" + Constants.Cache.KEY_AUTH_RT
             + "' + #refreshToken", unless = "#result == null")
     public Mono<AuthResponse> refresh(String refreshToken) {
-        return refreshTokenRepository.findByToken(refreshToken)
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return Mono.error(new UnauthorizedException("Invalid or expired refresh token"));
+        }
+        // Stored/cached records are keyed by digest; the client presents the raw token.
+        String rtHash = TokenHasher.sha256Hex(refreshToken);
+        return refreshTokenRepository.findByToken(rtHash)
                 .switchIfEmpty(Mono.error(new UnauthorizedException("Invalid or expired refresh token")))
                 .flatMap(storedToken -> {
-                    if (!jwtTokenProvider.validateToken(storedToken.getToken())) {
+                    // Validate the raw token the client presented (the digest is not a JWT).
+                    if (!jwtTokenProvider.validateToken(refreshToken)) {
                         // Token expired in JWT layer – evict from cache and DB atomically
-                        Mono<Void> dbDelete = refreshTokenRepository.deleteByToken(refreshToken);
+                        Mono<Void> dbDelete = refreshTokenRepository.deleteByToken(rtHash);
                         return atomicCacheEvictVoid(
                                 dbDelete,
-                                Constants.Cache.KEY_AUTH_RT + refreshToken)
+                                Constants.Cache.KEY_AUTH_RT + rtHash)
                                 .then(Mono.error(new UnauthorizedException("Refresh token has expired")));
                     }
-                    String username = jwtTokenProvider.getUsername(storedToken.getToken());
+                    String username = jwtTokenProvider.getUsername(refreshToken);
                     return userRepository.findByUsername(username)
                             .switchIfEmpty(Mono.error(new UserNotFoundException(username)))
                             .map(user -> {
@@ -223,8 +237,9 @@ public class AuthServiceImpl extends AbstractCacheableService implements AuthSer
         if (refreshToken == null || refreshToken.isBlank()) {
             return Mono.empty();
         }
-        Mono<Void> dbDelete = refreshTokenRepository.deleteByToken(refreshToken);
-        return atomicCacheEvictVoid(dbDelete, Constants.Cache.KEY_AUTH_RT + refreshToken);
+        String rtHash = TokenHasher.sha256Hex(refreshToken);
+        Mono<Void> dbDelete = refreshTokenRepository.deleteByToken(rtHash);
+        return atomicCacheEvictVoid(dbDelete, Constants.Cache.KEY_AUTH_RT + rtHash);
     }
 
     // -------------------------------------------------------------------------
@@ -234,7 +249,7 @@ public class AuthServiceImpl extends AbstractCacheableService implements AuthSer
     private void setRefreshTokenCookie(ServerHttpResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from(Constants.Headers.COOKIE_REFRESH_TOKEN, token)
                 .httpOnly(true)
-                .secure(false)
+                .secure(appProperties.isSecureCookies())
                 .path("/api/v1/auth")
                 .maxAge(Constants.TTL.TTL_REFRESH_TOKEN.getSeconds())
                 .sameSite("Strict")
@@ -245,8 +260,10 @@ public class AuthServiceImpl extends AbstractCacheableService implements AuthSer
     private void clearRefreshTokenCookie(ServerHttpResponse response) {
         ResponseCookie cookie = ResponseCookie.from(Constants.Headers.COOKIE_REFRESH_TOKEN, "")
                 .httpOnly(true)
+                .secure(appProperties.isSecureCookies())
                 .path("/api/v1/auth")
                 .maxAge(0)
+                .sameSite("Strict")
                 .build();
         response.addCookie(cookie);
     }

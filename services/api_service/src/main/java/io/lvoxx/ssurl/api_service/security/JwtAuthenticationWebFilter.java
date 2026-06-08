@@ -27,7 +27,7 @@ public class JwtAuthenticationWebFilter implements WebFilter {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String token = resolveToken(exchange.getRequest());
-        if (token != null && jwtTokenProvider.validateToken(token)) {
+        if (token != null && jwtTokenProvider.validateToken(token) && jwtTokenProvider.isAccessToken(token)) {
             String username = jwtTokenProvider.getUsername(token);
             String role = jwtTokenProvider.getRole(token);
             List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(Constants.Jwt.ROLE_PREFIX + role));

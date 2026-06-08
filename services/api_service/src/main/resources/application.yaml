@@ -4,6 +4,15 @@ app:
     secret: ${JWT_SECRET}
     refresh-expiry: ${JWT_REFRESH_EXPIRY:604800}
   short-url-base: ${SHORT_URL_BASE:http://localhost:8080}
+  # Refresh-token cookie is marked Secure by default; override to false only for
+  # local plaintext HTTP development.
+  secure-cookies: ${COOKIE_SECURE:true}
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    auth-limit: ${RATE_LIMIT_AUTH_LIMIT:10}
+    auth-window-seconds: ${RATE_LIMIT_AUTH_WINDOW:60}
+    create-limit: ${RATE_LIMIT_CREATE_LIMIT:30}
+    create-window-seconds: ${RATE_LIMIT_CREATE_WINDOW:60}
 logging:
   level:
     io:

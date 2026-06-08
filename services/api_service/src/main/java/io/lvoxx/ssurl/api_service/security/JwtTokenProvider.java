@@ -72,6 +72,22 @@ public class JwtTokenProvider {
         }
     }
 
+    /**
+     * Returns {@code true} only if the token is a valid <em>access</em> token
+     * (its {@code type} claim equals {@link Constants.Jwt#TYPE_ACCESS}).
+     *
+     * <p>
+     * This prevents a long-lived refresh token from being presented as a
+     * {@code Bearer} access token to bypass the short access-token lifetime.
+     */
+    public boolean isAccessToken(String token) {
+        try {
+            return Constants.Jwt.TYPE_ACCESS.equals(parseToken(token).get(Constants.Jwt.CLAIM_TYPE));
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
     public String getUsername(String token) {
         return parseToken(token).getSubject();
     }

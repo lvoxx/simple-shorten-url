@@ -26,6 +26,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import io.lvoxx.ssurl.api_service.config.AppProperties;
 import io.lvoxx.ssurl.api_service.repository.RefreshTokenRepository;
 import io.lvoxx.ssurl.api_service.repository.UserRepository;
 import io.lvoxx.ssurl.api_service.security.JwtTokenProvider;
@@ -38,6 +39,7 @@ import io.lvoxx.ssurl.common.exception.UserNotFoundException;
 import io.lvoxx.ssurl.common.mapper.UserMapper;
 import io.lvoxx.ssurl.common.model.RefreshToken;
 import io.lvoxx.ssurl.common.model.User;
+import io.lvoxx.ssurl.common.util.TokenHasher;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -72,6 +74,8 @@ class AuthServiceImplTest {
     PasswordEncoder passwordEncoder;
     @Mock
     UserMapper userMapper;
+    @Mock
+    AppProperties appProperties;
 
     // Redisson chain: client → batch → bucket / keys
     @Mock
@@ -256,9 +260,10 @@ class AuthServiceImplTest {
         @DisplayName("valid token – issues new access token")
         void refresh_validToken_returnsNewAccessToken() {
             RefreshToken stored = new RefreshToken();
-            stored.setToken("valid-rt");
+            stored.setToken(TokenHasher.sha256Hex("valid-rt"));
 
-            when(refreshTokenRepository.findByToken("valid-rt")).thenReturn(Mono.just(stored));
+            // DB/cache lookups are keyed by the token digest; JWT validation uses the raw token.
+            when(refreshTokenRepository.findByToken(TokenHasher.sha256Hex("valid-rt"))).thenReturn(Mono.just(stored));
             when(jwtTokenProvider.validateToken("valid-rt")).thenReturn(true);
             when(jwtTokenProvider.getUsername("valid-rt")).thenReturn("lvoxx");
             when(userRepository.findByUsername("lvoxx")).thenReturn(Mono.just(testUser));
@@ -275,11 +280,11 @@ class AuthServiceImplTest {
         @DisplayName("expired JWT in stored token – evicts cache and emits UnauthorizedException")
         void refresh_expiredToken_evictsCacheAndThrows() {
             RefreshToken stored = new RefreshToken();
-            stored.setToken("expired-rt");
+            stored.setToken(TokenHasher.sha256Hex("expired-rt"));
 
-            when(refreshTokenRepository.findByToken("expired-rt")).thenReturn(Mono.just(stored));
+            when(refreshTokenRepository.findByToken(TokenHasher.sha256Hex("expired-rt"))).thenReturn(Mono.just(stored));
             when(jwtTokenProvider.validateToken("expired-rt")).thenReturn(false);
-            when(refreshTokenRepository.deleteByToken("expired-rt")).thenReturn(Mono.empty());
+            when(refreshTokenRepository.deleteByToken(TokenHasher.sha256Hex("expired-rt"))).thenReturn(Mono.empty());
 
             StepVerifier.create(authService.refresh("expired-rt"))
                     .expectError(UnauthorizedException.class)
@@ -293,7 +298,7 @@ class AuthServiceImplTest {
         @Test
         @DisplayName("token not found in DB – emits UnauthorizedException without cache interaction")
         void refresh_tokenNotFound_throwsUnauthorized() {
-            when(refreshTokenRepository.findByToken("ghost-rt")).thenReturn(Mono.empty());
+            when(refreshTokenRepository.findByToken(TokenHasher.sha256Hex("ghost-rt"))).thenReturn(Mono.empty());
 
             StepVerifier.create(authService.refresh("ghost-rt"))
                     .expectError(UnauthorizedException.class)
@@ -314,12 +319,12 @@ class AuthServiceImplTest {
         @Test
         @DisplayName("valid token – deletes from DB and evicts cache atomically")
         void logout_validToken_deletesAndEvicts() {
-            when(refreshTokenRepository.deleteByToken("rt-value")).thenReturn(Mono.empty());
+            when(refreshTokenRepository.deleteByToken(TokenHasher.sha256Hex("rt-value"))).thenReturn(Mono.empty());
 
             StepVerifier.create(authService.logout("rt-value", httpResponse))
                     .verifyComplete();
 
-            verify(refreshTokenRepository).deleteByToken("rt-value");
+            verify(refreshTokenRepository).deleteByToken(TokenHasher.sha256Hex("rt-value"));
             verify(redisson, atLeastOnce()).createBatch();
         }
 
