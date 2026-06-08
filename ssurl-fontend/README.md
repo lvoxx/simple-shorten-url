@@ -1,54 +1,75 @@
-# ssurl-fontend
+# ssurl — frontend
 
-This template should help get you started developing with Vue 3 in Vite.
+Vue 3 + TypeScript single-page app for the simple-shorten-url backend. Dark,
+Linear-style developer-tool UI built with Vite, Pinia, Tailwind v4, and a
+layered `services → stores → composables → components` architecture.
 
-## Recommended IDE Setup
+## Features
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- Anonymous URL shortening with copy + QR code (no account needed)
+- Register / login / logout with silent token refresh
+- Authenticated dashboard: create, list (cursor pagination), edit, delete links
+- Account settings: update email, delete account
 
-## Recommended Browser Setup
+## Requirements
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+- Node `^20.19 || >=22.12`
+- The backend `api_service` running on `http://localhost:8080` (see the repo
+  root `CLAUDE.md` for starting Postgres, Redis, and the service). The dev
+  server proxies `/api` to it, so no CORS config is needed.
 
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+## Scripts
 
 ```sh
 npm install
+npm run dev          # Vite dev server at http://localhost:5173 (proxies /api → :8080)
+npm run build        # type-check + production bundle
+npm run test:unit    # vitest
+npm run lint         # oxlint + eslint
+npm run type-check   # vue-tsc
 ```
 
-### Compile and Hot-Reload for Development
+To point the dev proxy at a non-default backend, set `VITE_API_TARGET`
+(e.g. `VITE_API_TARGET=http://localhost:9000 npm run dev`).
 
-```sh
-npm run dev
+> Low-memory machines (≈4 GB): `npm run build` can exhaust Node's heap. Run it
+> with `NODE_OPTIONS=--max-old-space-size=3072 npm run build`. Development
+> (`npm run dev`) and tests are unaffected.
+
+## Architecture
+
+```
+src/
+├── types/api.ts        # TS mirrors of backend DTOs
+├── lib/                # http client, ProblemDetail handling, formatters
+├── services/           # one module per API area (auth, url, user)
+├── stores/             # Pinia: auth (in-memory token), toast
+├── composables/        # useAsync, useForm (zod), useCopy, useReveal
+├── components/
+│   ├── ui/             # design-system primitives (Button, Input, Card, …)
+│   ├── layout/         # header, footer, logo
+│   ├── shorten/        # ShortenForm, ShortenResult
+│   └── urls/           # UrlList, UrlCard, UrlEditModal, QrCode
+├── views/              # routed pages
+└── router/             # routes + auth guard
 ```
 
-### Type-Check, Compile and Minify for Production
+### Auth model
 
-```sh
-npm run build
-```
+The access token lives only in memory (Pinia). The refresh token is an
+HTTP-only cookie the browser manages. On load and on any `401`, the app silently
+calls `/auth/refresh` to restore or renew the session, then retries once.
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+### Design tokens
 
-```sh
-npm run test:unit
-```
+All theme values (dark surfaces, the single electric-blue accent, one radius
+scale, fonts) are defined in `src/assets/main.css` via Tailwind `@theme`.
 
-### Lint with [ESLint](https://eslint.org/)
+Brand assets (logo, OG image) are placeholdered — see
+`src/assets/placeholders/README.md`.
 
-```sh
-npm run lint
-```
+## Recommended IDE
+
+[VS Code](https://code.visualstudio.com/) + the official
+[Vue (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.volar)
+extension (disable Vetur).
