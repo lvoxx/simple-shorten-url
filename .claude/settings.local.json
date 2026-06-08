@@ -3,7 +3,12 @@
     "allow": [
       "Bash(rtk ls *)",
       "Bash(jar tf *)",
-      "Bash(rtk find *)"
+      "Bash(rtk find *)",
+      "Bash(rtk tree *)",
+      "Bash(rtk grep *)",
+      "Bash(rtk cat *)",
+      "Bash(rtk read *)",
+      "Bash(rtk rg *)"
     ]
   }
 }
