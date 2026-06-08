@@ -130,4 +130,43 @@ class JwtTokenProviderTest {
             assertThat(jwtTokenProvider.getAccessExpiryMs()).isEqualTo(ACCESS_EXPIRY * 1000);
         }
     }
+
+    @Nested
+    @DisplayName("isAccessToken")
+    class IsAccessToken {
+
+        @Test
+        @DisplayName("returns true for an access token (type=access)")
+        void accessToken_returnsTrue() {
+            String token = jwtTokenProvider.createAccessToken("alice", "USER");
+            assertThat(jwtTokenProvider.isAccessToken(token)).isTrue();
+        }
+
+        @Test
+        @DisplayName("returns false for a refresh token (type=refresh) presented as Bearer")
+        void refreshToken_returnsFalse() {
+            String token = jwtTokenProvider.createRefreshToken("alice");
+            assertThat(jwtTokenProvider.validateToken(token)).isTrue();
+            assertThat(jwtTokenProvider.isAccessToken(token)).isFalse();
+        }
+
+        @Test
+        @DisplayName("returns false for a token missing the type claim")
+        void noTypeClaim_returnsFalse() {
+            var key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(BASE64_SECRET));
+            String token = Jwts.builder()
+                    .subject("alice")
+                    .claim("role", "USER")
+                    .signWith(key)
+                    .compact();
+
+            assertThat(jwtTokenProvider.isAccessToken(token)).isFalse();
+        }
+
+        @Test
+        @DisplayName("returns false for a malformed token")
+        void malformedToken_returnsFalse() {
+            assertThat(jwtTokenProvider.isAccessToken("not-a-valid-token")).isFalse();
+        }
+    }
 }

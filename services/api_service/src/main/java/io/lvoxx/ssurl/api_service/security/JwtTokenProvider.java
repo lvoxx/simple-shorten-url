@@ -4,6 +4,7 @@ import java.util.Date;
 
 import javax.crypto.SecretKey;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import io.jsonwebtoken.Claims;
@@ -13,25 +14,32 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.lvoxx.ssurl.api_service.properties.JwtProperties;
 import io.lvoxx.ssurl.common.util.Constants;
-import jakarta.annotation.PostConstruct;
 
 @Component
 public class JwtTokenProvider {
 
-    private SecretKey secretKey;
-    private long accessExpiryMs;
-    private long refreshExpiryMs;
-    private final JwtProperties jwtProperties;
+    private final SecretKey secretKey;
+    private final long accessExpiryMs;
+    private final long refreshExpiryMs;
 
+    /** Spring injection path — derives the key/expiries from bound properties. */
+    @Autowired
     public JwtTokenProvider(JwtProperties jwtProperties) {
-        this.jwtProperties = jwtProperties;
+        this(jwtProperties.getSecret(), jwtProperties.getAccessExpiry(), jwtProperties.getRefreshExpiry());
     }
 
-    @PostConstruct
-    public void init() {
-        this.secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtProperties.getSecret()));
-        this.accessExpiryMs = jwtProperties.getAccessExpiry() * 1000L;
-        this.refreshExpiryMs = jwtProperties.getRefreshExpiry() * 1000L;
+    /**
+     * Primary constructor (also used directly in unit tests). Builds the HMAC
+     * key from a Base64-encoded secret and converts the expiry seconds to ms.
+     *
+     * @param base64Secret         Base64-encoded HMAC-SHA signing secret
+     * @param accessExpirySeconds  access-token lifetime in seconds
+     * @param refreshExpirySeconds refresh-token lifetime in seconds
+     */
+    public JwtTokenProvider(String base64Secret, long accessExpirySeconds, long refreshExpirySeconds) {
+        this.secretKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret));
+        this.accessExpiryMs = accessExpirySeconds * 1000L;
+        this.refreshExpiryMs = refreshExpirySeconds * 1000L;
     }
 
     public String createAccessToken(String username, String role) {
