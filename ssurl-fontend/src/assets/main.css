@@ -1,0 +1,140 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens — dark dev-tool / Linear-style, theme-locked.
+ * One neutral base (zinc), ONE accent (electric blue) used everywhere.
+ * One radius scale. Tokens are exposed as Tailwind utilities via @theme.
+ */
+@theme {
+  --font-display: 'Outfit Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* Surfaces (dark, layered) */
+  --color-bg: oklch(15% 0.006 264);
+  --color-surface: oklch(19% 0.007 264);
+  --color-surface-2: oklch(23% 0.008 264);
+  --color-border: oklch(30% 0.009 264);
+  --color-border-strong: oklch(38% 0.011 264);
+
+  /* Text */
+  --color-fg: oklch(96% 0.003 264);
+  --color-fg-muted: oklch(72% 0.008 264);
+  --color-fg-subtle: oklch(58% 0.009 264);
+
+  /* The single accent — electric blue */
+  --color-accent: oklch(64% 0.17 250);
+  --color-accent-hover: oklch(69% 0.17 250);
+  --color-accent-fg: oklch(99% 0 0);
+  --color-accent-soft: oklch(64% 0.17 250 / 0.12);
+
+  /* Semantic state (used sparingly, derived from one hue each) */
+  --color-success: oklch(72% 0.15 158);
+  --color-danger: oklch(64% 0.2 25);
+  --color-danger-hover: oklch(69% 0.2 25);
+  --color-warning: oklch(78% 0.14 78);
+
+  /* One radius scale */
+  --radius-input: 10px;
+  --radius-card: 14px;
+  --radius-pill: 9999px;
+
+  /* Motion */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-display);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  ::selection {
+    background: var(--color-accent-soft);
+    color: var(--color-fg);
+  }
+
+  /* Accent-tinted focus ring shared by all interactive elements */
+  :where(a, button, input, textarea, select):focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer utilities {
+  /* Subtle dark grid backdrop for the hero — CSS only, no AI-purple. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, var(--color-border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 75%);
+  }
+
+  /* Skeleton shimmer */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklch, var(--color-fg) 6%, transparent),
+      transparent
+    );
+    animation: shimmer 1.4s infinite;
+  }
+
+  /* Scroll-reveal entry (paired with useReveal composable) */
+  .reveal {
+    opacity: 0;
+    transform: translateY(16px);
+    transition:
+      opacity 0.6s var(--ease-out-expo),
+      transform 0.6s var(--ease-out-expo);
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

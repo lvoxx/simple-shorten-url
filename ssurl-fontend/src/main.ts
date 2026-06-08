@@ -1,3 +1,8 @@
+import '@fontsource-variable/outfit'
+import '@fontsource/geist-mono/400.css'
+import '@fontsource/geist-mono/500.css'
+import './assets/main.css'
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 
