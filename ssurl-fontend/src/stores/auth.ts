@@ -64,8 +64,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout(): Promise<void> {
+    // Logout must always succeed locally; a failed server call still clears state.
     try {
       await authService.logout()
+    } catch {
+      // ignore — the refresh cookie expires server-side regardless
     } finally {
       clearSession()
     }

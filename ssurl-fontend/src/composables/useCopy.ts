@@ -5,6 +5,6 @@ import { useClipboard } from '@vueuse/core'
  * Thin wrapper over @vueuse/core so components don't repeat the timing config.
  */
 export function useCopy(copiedDuration = 1800) {
-  const { copy, copied, isSupported } = useClipboard({ copiedDuration, legacy: true })
+  const { copy, copied, isSupported } = useClipboard({ copiedDuring: copiedDuration, legacy: true })
   return { copy, copied, isSupported }
 }
