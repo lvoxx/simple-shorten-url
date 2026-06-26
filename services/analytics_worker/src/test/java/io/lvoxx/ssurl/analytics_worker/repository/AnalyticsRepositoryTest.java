@@ -35,7 +35,8 @@ class AnalyticsRepositoryTest extends AbstractPostgresContainer {
                                 .ip("192.168.1.1")
                                 .userAgent("Mozilla/5.0")
                                 .referer("https://google.com")
-                                .country("US")
+                                .countryCode("US")
+                                .countryName("United States of America")
                                 .createdAt(LocalDateTime.now())
                                 .build())
                                 .as(StepVerifier::create)
@@ -45,7 +46,8 @@ class AnalyticsRepositoryTest extends AbstractPostgresContainer {
                                         assertThat(a.getIp()).isEqualTo("192.168.1.1");
                                         assertThat(a.getUserAgent()).isEqualTo("Mozilla/5.0");
                                         assertThat(a.getReferer()).isEqualTo("https://google.com");
-                                        assertThat(a.getCountry()).isEqualTo("US");
+                                        assertThat(a.getCountryCode()).isEqualTo("US");
+                                        assertThat(a.getCountryName()).isEqualTo("United States of America");
                                         assertThat(a.getCreatedAt()).isNotNull();
                                 })
                                 .expectComplete()
@@ -65,7 +67,8 @@ class AnalyticsRepositoryTest extends AbstractPostgresContainer {
                                         assertThat(a.getShortCode()).isEqualTo("evt002");
                                         assertThat(a.getUserAgent()).isNull();
                                         assertThat(a.getReferer()).isNull();
-                                        assertThat(a.getCountry()).isNull();
+                                        assertThat(a.getCountryCode()).isNull();
+                                        assertThat(a.getCountryName()).isNull();
                                 })
                                 .expectComplete()
                                 .verify(Duration.ofSeconds(10));
@@ -162,15 +165,20 @@ class AnalyticsRepositoryTest extends AbstractPostgresContainer {
                 analyticsRepository.save(Analytics.builder()
                                 .shortCode("evt006")
                                 .ip("10.0.0.7")
-                                .country("UK")
+                                .countryCode("UK")
+                                .countryName("United Kingdom")
                                 .createdAt(LocalDateTime.now())
                                 .build())
                                 .flatMap(saved -> {
-                                        saved.setCountry("FR");
+                                        saved.setCountryCode("FR");
+                                        saved.setCountryName("France");
                                         return analyticsRepository.save(saved);
                                 })
                                 .as(StepVerifier::create)
-                                .assertNext(a -> assertThat(a.getCountry()).isEqualTo("FR"))
+                                .assertNext(a -> {
+                                        assertThat(a.getCountryCode()).isEqualTo("FR");
+                                        assertThat(a.getCountryName()).isEqualTo("France");
+                                })
                                 .expectComplete()
                                 .verify(Duration.ofSeconds(10));
         }
