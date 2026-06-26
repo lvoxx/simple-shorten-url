@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { PhGauge, PhSignOut, PhUserCircle } from '@phosphor-icons/vue'
+import { PhChartLine, PhGauge, PhSignOut, PhUserCircle } from '@phosphor-icons/vue'
 
 import AppLogo from './AppLogo.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -40,6 +40,14 @@ async function onLogout(): Promise<void> {
           >
             <PhGauge :size="18" />
             Dashboard
+          </RouterLink>
+          <RouterLink
+            to="/analytics"
+            class="hidden items-center gap-1.5 rounded-[--radius-input] px-3 py-2 text-sm font-medium text-fg-muted transition-colors hover:text-fg sm:inline-flex"
+            active-class="text-fg"
+          >
+            <PhChartLine :size="18" />
+            Analytics
           </RouterLink>
           <RouterLink
             to="/account"

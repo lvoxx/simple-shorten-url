@@ -58,6 +58,46 @@ export interface CreateUrlRequest {
   expireAt?: string | null
 }
 
+// ── Dashboard analytics (services/dashboard) ──────────────────────
+
+export interface DashboardOverview {
+  totalClicks: number
+  activeLinks: number
+  clicksToday: number
+  uniqueVisitors: number
+  /** Percent change vs. the immediately preceding window. */
+  trendPct: number
+}
+
+export interface TimeSeriesPoint {
+  /** ISO date (yyyy-MM-dd). */
+  date: string
+  clicks: number
+}
+
+export interface TopItem {
+  key: string
+  label: string
+  clicks: number
+}
+
+export interface CodeStats {
+  shortCode: string
+  title: string | null
+  totalClicks: number
+  uniqueVisitors: number
+  lastClickedAt: string | null
+  series: TimeSeriesPoint[]
+  topReferers: TopItem[]
+}
+
+/** Live click notification pushed over the dashboard WebSocket. */
+export interface DashboardLiveTick {
+  shortCode: string
+  clicks: number
+  timestamp: number
+}
+
 export interface UpdateUrlRequest {
   title?: string | null
   expireAt?: string | null

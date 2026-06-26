@@ -1,9 +1,46 @@
 server:
-  port: 8080
+  port: 8083
 
 spring:
   application:
     name: dashboard
+
+  # ── R2DBC (read-model store: click_events + click_daily_rollup) ───────────────
+  r2dbc:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  # ── Redis (live counters, HyperLogLog uniques, aggregation cache) ─────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+  # ── Kafka (own consumer group; reads analytics-events into the read-model) ────
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: dashboard
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+      properties:
+        schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
+        specific.avro.reader: 'true'
+    listener:
+      type: batch
+
+# ── Application config ────────────────────────────────────────────────────────
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+  kafka:
+    max-batch-size: ${DASHBOARD_MAX_BATCH_SIZE:500}
+  dashboard:
+    # TTL for cached aggregation responses (timeseries, top-N, overview).
+    cache-ttl-seconds: ${DASHBOARD_CACHE_TTL:60}
 
 # ── Actuator ─────────────────────────────────────────────────────────────────
 management:
@@ -21,4 +58,4 @@ logging:
     root: INFO
     io.lvoxx.ssurl.dashboard: DEBUG
     org.springframework.kafka: INFO
-    org.springframework.web.socket: INFO
+    org.springframework.web.reactive.socket: INFO

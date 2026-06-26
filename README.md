@@ -52,6 +52,7 @@ User → Cloudflare CDN → NGINX → Redirect Service → Redis → 302 Redirec
 | `api-service` | URL creation, auth, user management | 8080 |
 | `redirect-service` | High-performance short-code resolution | 8081 |
 | `analytics-worker` | Async Kafka consumer, batch analytics | 8082 |
+| `dashboard` | Per-user analytics read-model (REST + WebSocket) | 8083 |
 | `redis` | Cache, rate limiter, bloom filter | 6379 |
 | `nginx` | Reverse proxy, routing, SSL termination | 80/443 |
 
