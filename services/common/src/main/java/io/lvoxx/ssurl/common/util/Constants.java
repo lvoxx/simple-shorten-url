@@ -108,6 +108,7 @@ public final class Constants {
         public static final String AUTH = "/api/v1/auth";
         public static final String USERS = "/api/v1/users";
         public static final String URLS = "/api/v1/urls";
+        public static final String DASHBOARD = "/api/v1/dashboard";
     }
 
     // ─────────────────────────────────────────────────────────────────

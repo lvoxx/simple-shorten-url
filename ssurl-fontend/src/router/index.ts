@@ -23,6 +23,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/analytics',
+    name: 'analytics',
+    component: () => import('@/views/AnalyticsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/account',
     name: 'account',
     component: () => import('@/views/AccountView.vue'),

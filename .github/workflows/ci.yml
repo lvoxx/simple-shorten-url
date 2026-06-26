@@ -47,7 +47,7 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           GIT_SHA: ${{ github.sha }}
         run: |
-          for service in api_service redirect_service analytics_worker; do
+          for service in api_service redirect_service analytics_worker dashboard; do
             image="${DOCKER_USERNAME}/shorten-url-${service}"
             docker build \
               -f "${service}/Dockerfile" \

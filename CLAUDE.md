@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A URL shortener built as a modular monolith — three independently deployable Spring Boot services sharing common and starter modules. The system uses a **write/read/async** service split:
+A URL shortener built as a modular monolith — four independently deployable Spring Boot services sharing common and starter modules. The system uses a **write/read/async** service split:
 
 - `api_service` (port 8080) — URL creation, auth, user management
 - `redirect_service` (port 8081) — short-code resolution and 302 redirect (hot path)
 - `analytics_worker` (port 8082) — Kafka consumer for async click analytics
+- `dashboard` (port 8083) — per-user analytics read-model: consumes `analytics-events` into its own `click_events` + daily rollup, serves Redis-cached aggregations over REST, and pushes live click ticks over WebSocket (`/ws/dashboard`)
 
 ## Build Commands
 
@@ -81,7 +82,9 @@ Client → Cloudflare CDN → NGINX
 services/
 ├── api_service/          # Write path — auth, URL CRUD, user mgmt
 ├── redirect_service/     # Read path — high-throughput redirect
-├── analytics_worker/     # Async Kafka consumer
+├── analytics_worker/     # Async Kafka consumer (IP2Location-enriched analytics)
+├── dashboard/            # Per-user analytics read-model (Kafka→click_events +
+│                         #   daily rollup; Redis-cached aggregates; WebSocket push)
 ├── common/               # Shared: domain models, DTOs, exceptions
 │                         #   MapStruct mappers, Avro schema definitions
 └── starters/
@@ -413,6 +416,7 @@ Each service has a `Dockerfile` at its directory root. **Build context must be `
 docker build -f api_service/Dockerfile -t ssurl-api .
 docker build -f redirect_service/Dockerfile -t ssurl-redirect .
 docker build -f analytics_worker/Dockerfile -t ssurl-analytics .
+docker build -f dashboard/Dockerfile -t ssurl-dashboard .
 ```
 
 ## Known Issues
